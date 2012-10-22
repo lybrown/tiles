@@ -1,0 +1,64 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Image::Magick;
+use Data::Dumper;
+$Data::Dumper::Indent = 1;
+
+my %pal;
+$pal{"0,0,0"} = [0, 0];
+$pal{"50,50,50"} = [0, 1];
+$pal{"85,85,85"} = [0, 2];
+$pal{"119,119,119"} = [0, 3];
+$pal{"38,7,14"} = [1, 0];
+$pal{"110,48,63"} = [1, 1];
+$pal{"144,82,97"} = [1, 2];
+$pal{"165,116,131"} = [1, 3];
+$pal{"10,14,79"} = [2, 0];
+$pal{"51,63,137"} = [2, 1];
+$pal{"85,97,171"} = [2, 2];
+$pal{"119,131,179"} = [2, 3];
+$pal{"15,31,0"} = [3, 0];
+$pal{"68,83,13"} = [3, 1];
+$pal{"102,117,47"} = [3, 2];
+$pal{"136,151,81"} = [3, 3];
+$pal{$_} = $pal{$_}[0] << 2 | $pal{$_}[1] for keys %pal;
+
+sub parsejson {
+    my ($file) = @_;
+    open my $fh, $file or die "ERROR: Cannot open $file: $!\n";
+    my $text = join "", <$fh>;
+    $text =~ s/:/=>/g;
+    $text =~ s/=>true/=>1/g;
+    my $struct = eval $text or die $@;
+    return $struct;
+}
+
+sub readimage {
+    my ($file) = @_;
+    my $image = Image::Magick->new;
+    my $status = $image->Read($file);
+    warn "WARNING: $status" if $status;
+    return $image;
+}
+
+sub main {
+    my $map = parsejson($ARGV[0]);
+    my $layer = $map->{layers}[0];
+    my $data = $layer->{data} or die;
+    my $width = $layer->{width} or die;
+    my $height = $layer->{height} or die;
+    my %counts;
+    $counts{$_}++ for @$data;
+    my @tiles = sort { $counts{$b} <=> $counts{$a} } keys %counts;
+    my %raw2tile = map { $tiles[$_] => $_+1 } 0 .. $#tiles;
+    my @map = map { $raw2tile{$_} || 0 } @$data;
+    my $image = readimage($map->{tilesets}[0]{image});
+    my @pixels = $image->GetPixels(width => 16, height => 16, x => 16, y => 16);
+    $_ >>= 8 for @pixels;
+    my @bmp;
+    push @bmp, $pal{join ",", splice @pixels, 0, 3} || 0 while @pixels;
+    print Dumper \@bmp;
+}
+
+main();
