@@ -1,6 +1,9 @@
 # $Id: Makefile 36 2008-06-29 23:46:07Z lybrown $
 
 tiles.run:
+tiles.obx: assets.asm
+assets.asm: foo.json json2am
+	./json2am $^ > $@
 
 atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 

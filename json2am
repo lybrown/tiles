@@ -6,22 +6,26 @@ use Data::Dumper;
 $Data::Dumper::Indent = 1;
 
 my %pal;
+# grey
 $pal{"0,0,0"} = [0, 0];
-$pal{"50,50,50"} = [0, 1];
+$pal{"51,51,51"} = [0, 1];
 $pal{"85,85,85"} = [0, 2];
 $pal{"119,119,119"} = [0, 3];
-$pal{"38,7,14"} = [1, 0];
-$pal{"110,48,63"} = [1, 1];
-$pal{"144,82,97"} = [1, 2];
-$pal{"165,116,131"} = [1, 3];
-$pal{"10,14,79"} = [2, 0];
-$pal{"51,63,137"} = [2, 1];
-$pal{"85,97,171"} = [2, 2];
-$pal{"119,131,179"} = [2, 3];
-$pal{"15,31,0"} = [3, 0];
-$pal{"68,83,13"} = [3, 1];
-$pal{"102,117,47"} = [3, 2];
-$pal{"136,151,81"} = [3, 3];
+# red
+$pal{"59,0,18"} = [1, 0];
+$pal{"110,51,69"} = [1, 1];
+$pal{"144,85,103"} = [1, 2];
+$pal{"178,119,137"} = [1, 3];
+# green
+$pal{"18,31,0"} = [3, 0];
+$pal{"69,82,51"} = [3, 1];
+$pal{"103,116,85"} = [3, 2];
+$pal{"137,150,119"} = [3, 3];
+# blue
+$pal{"0,13,85"} = [2, 0];
+$pal{"51,64,136"} = [2, 1];
+$pal{"85,98,170"} = [2, 2];
+$pal{"119,132,204"} = [2, 3];
 $pal{$_} = $pal{$_}[0] << 2 | $pal{$_}[1] for keys %pal;
 
 sub parsejson {
@@ -42,23 +46,69 @@ sub readimage {
     return $image;
 }
 
+sub dump_tile {
+    my ($tileset, $image, $tile) = @_;
+    my $imagewidth = $tileset->{imagewidth} or die;
+    my $imageheight = $tileset->{imageheight} or die;
+    my $tilewidth = $tileset->{tilewidth} or die;
+    my $tileheight = $tileset->{tileheight} or die;
+    my $dy = int($imagewidth / $tilewidth);
+    my $xo = $tilewidth * (($tile - 1) % $dy);
+    my $yo = $tileheight * int(($tile - 1) / $dy + 0.5);
+    warn "TILE: $tile: DY: $dy XO: $xo YO: $yo\n";
+    my @pixels;
+    for (my $x = $xo; $x < $xo + $tilewidth; $x += 4) {
+        push @pixels, $image->GetPixels(x => $x, y => $yo, width => 4, height => $tileheight);
+    }
+    return @pixels;
+}
+
+sub chline {
+    my (@bmp) = @_;
+    my $hue = ($bmp[0]<<4&0xC0)|($bmp[1]<<2&0x30)|($bmp[2]<<0&0xC)|($bmp[3]>>2&0x3);
+    my $lum = ($bmp[0]<<6&0xC0)|($bmp[1]<<4&0x30)|($bmp[2]<<2&0xC)|($bmp[3]<<0&0x3);
+    return ($hue, $lum);
+}
+
+sub dump_chset {
+    my ($map, $tiles) = @_;
+    my $tileset = $map->{tilesets}[0];
+    my $image = readimage($tileset->{image});
+    my @pixels;
+    push @pixels, dump_tile($tileset, $image, $_) for @$tiles;
+    $_ >>= 8 for @pixels;
+    my @bmp;
+    push @bmp, $pal{join ",", splice @pixels, 0, 3} || 0 while @pixels;
+    my @chset;
+    push @chset, chline(splice @bmp, 0, 4) while @bmp;
+    if (@chset > 8*128) {
+        warn "WARNING: Truncating charset to 128 chars. ",
+            "Set has ", (@chset/8), "chars.\n";
+        splice @chset, 0, 8*128;
+    }
+    my $ch = 0;
+    print "  org chset\n";
+    print "  dta ", (join ",", splice @chset, 0, 8), " ; ", $ch++, "\n" while @chset;
+}
+
+sub dump_map {
+    my ($map) = @_;
+    my @copy = @$map;
+    print "  org map\n";
+    print "  dta ", (join ",", splice @copy, 0, 32), "\n" while @copy;
+}
+
 sub main {
     my $map = parsejson($ARGV[0]);
     my $layer = $map->{layers}[0];
     my $data = $layer->{data} or die;
-    my $width = $layer->{width} or die;
-    my $height = $layer->{height} or die;
     my %counts;
     $counts{$_}++ for @$data;
     my @tiles = sort { $counts{$b} <=> $counts{$a} } keys %counts;
     my %raw2tile = map { $tiles[$_] => $_+1 } 0 .. $#tiles;
     my @map = map { $raw2tile{$_} || 0 } @$data;
-    my $image = readimage($map->{tilesets}[0]{image});
-    my @pixels = $image->GetPixels(width => 16, height => 16, x => 16, y => 16);
-    $_ >>= 8 for @pixels;
-    my @bmp;
-    push @bmp, $pal{join ",", splice @pixels, 0, 3} || 0 while @pixels;
-    print Dumper \@bmp;
+    dump_chset($map, \@tiles);
+    dump_map(\@map);
 }
 
 main();
