@@ -1,7 +1,7 @@
     opt l-h+f-
     icl 'hardware.asm'
 coarse equ $80
-fine equ $83
+fine equ $82
 main equ $2000
 chset equ $3000
 dlist equ $3400
@@ -24,7 +24,6 @@ map equ $5000
     sta fine
     mva <scr coarse
     mva >scr coarse+1
-    mva >scr+$80 coarse+2
     mva >chset CHBASE
     mva #$22 DMACTL
     ;mva #$2d DMACTL
@@ -65,17 +64,13 @@ blank
     beq updlist
     bpl coarseup
 coarsedown
+    lda coarse
+    sne:dec coarse+1
     dec coarse
-    cmp #$ff
-    ;sne:dec coarse+1
-    cmp #$7f
-    ;sne:dec coarse+2
     jmp updlist
 coarseup
     inc coarse
-    ;sne:inc coarse+1
-    cmp $80
-    ;sne:inc coarse+2
+    sne:inc coarse+1
 
 updlist
     lda coarse
@@ -84,7 +79,9 @@ updlist
     :15 sta dlist+4+6*#
     ldx coarse+1
     :15 mva scrhi1,x+ dlist+2+6*#
-    ldx coarse+2
+    lda coarse+1
+    adc 0
+    tax
     :15 mva scrhi2,x+ dlist+5+6*#
 
     jmp showframe
