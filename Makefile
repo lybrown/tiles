@@ -2,32 +2,13 @@
 
 tiles.run:
 tiles.obx: assets.asm
-assets.asm: foo.json json2am
+assets.asm: foo.json pal.ppm foo.png json2am
 	./json2am $^ > $@
 
 atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 
-#export movie = turii
-#export audext = audc
-#max_frame = 2000
-#frames := $(shell cd orig; echo $(movie)*.png | sed s/.png/.abm/g)
-#frames := $(wordlist 1,$(max_frame),$(frames))
-#movie.obx: $(frames) $(movie).$(audext)
-
-%.audf: %.wav
-	sox -v 0.95 $< -u -b 8 -r15600 -D -t raw $@ dcshift -0.55 remix -
-
-%.raw: %.wav
-	sox -v 0.15 $< -u -b 8 -r15600 -D $@ remix -
-
-%.audc: %.raw
-	./raw2audc $< > $@
-
 %.ppm: orig/%.png
 	convert +dither -compress none $< -remap pal.ppm $@
-
-%.abm: %.ppm
-	./ppm2abm $< > $@
 
 %.run: %.xex
 	$(atari) $<
@@ -47,4 +28,4 @@ atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 clean:
 	rm -f *.{obx,atr,lst} *.{tmc,tm2,pgm,wav}.asm *~
 
-.PRECIOUS: %.obx %.lis %.atr %.xex %.ppm %.abm
+.PRECIOUS: %.obx %.xex %.ppm %.asm
