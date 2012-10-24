@@ -1,9 +1,14 @@
     opt l-h+f-
     icl 'hardware.asm'
-    org $2000
 coarse equ $80
 fine equ $83
-start
+main equ $2000
+chset equ $3000
+dlist equ $3400
+pm equ $3800
+scr equ $4000
+map equ $5000
+    org main
     sei
     lda #0
     sta IRQEN
@@ -21,9 +26,9 @@ start
     mva >scr coarse+1
     mva >scr+$80 coarse+2
     mva >chset CHBASE
-    ;mva #$22 DMACTL
+    mva #$22 DMACTL
     ;mva #$2d DMACTL
-    mva #$2e DMACTL
+    ;mva #$2e DMACTL
 showframe
     lda #3
     cmp:rne VCOUNT
@@ -36,9 +41,9 @@ image
     ldy #$d2
     lda #$32
     :3 nop
+    sta WSYNC
     sta COLPF0
     stx COLPF1
-    sta WSYNC
     sty COLPF2
     sta WSYNC
     mva #$6 COLPF0
@@ -61,16 +66,16 @@ blank
     bpl coarseup
 coarsedown
     dec coarse
-;    cmp #$ff
-;    sne:dec coarse+1
-;    cmp #$7f
-;    sne:dec coarse+2
+    cmp #$ff
+    ;sne:dec coarse+1
+    cmp #$7f
+    ;sne:dec coarse+2
     jmp updlist
 coarseup
     inc coarse
-;    sne:inc coarse+1
-;    cmp $80
-;    sne:inc coarse+2
+    ;sne:inc coarse+1
+    cmp $80
+    ;sne:inc coarse+2
 
 updlist
     lda coarse
@@ -78,9 +83,9 @@ updlist
     add #$80
     :15 sta dlist+4+6*#
     ldx coarse+1
-    ;:15 mva scrhi1,x+ dlist+2+6*#
+    :15 mva scrhi1,x+ dlist+2+6*#
     ldx coarse+2
-    ;:15 mva scrhi2,x+ dlist+5+6*#
+    :15 mva scrhi2,x+ dlist+5+6*#
 
     jmp showframe
 
@@ -103,9 +108,9 @@ scrhi1
     :256 dta >[scr+[#*$100]&$fff]
 scrhi2
     :256 dta >[scr+[$80+#*$100]&$fff]
-dlist
+
+    org dlist
     :30 dta $74,a(scr+#<<7)
-scr equ $5000
     org scr
     :256 dta 0
     :32 dta 48+0,48+4,48+8,48+12
@@ -140,7 +145,5 @@ scr equ $5000
     :31 dta 16+2,16+6,16+10,16+14
     :1 dta 96+3,96+7,96+11,96+15
     :31 dta 16+3,16+7,16+11,16+15
-chset equ $3000
-map equ $4000
     icl 'assets.asm'
-    run start
+    run main
