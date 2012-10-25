@@ -2,6 +2,11 @@
     icl 'hardware.asm'
 coarse equ $80
 fine equ $82
+mappos equ $83
+mapfrac equ $85
+tilepos equ $86
+mapy equ $88
+edgeoff equ $89
 main equ $2000
 chset equ $3000
 dlist equ $3400
@@ -22,9 +27,19 @@ map equ $5000
     sta GRAFM
     sta COLBK
     sta fine
+    sta edgeoff
     mva <scr coarse
     mva >scr coarse+1
     mva >chset CHBASE
+    lda coarse
+    add 48
+initdraw
+    jsr drawedgetiles
+    inc coarse
+    cmp coarse
+    bne initdraw
+    mva <scr coarse
+
     mva #$22 DMACTL
     ;mva #$2d DMACTL
     ;mva #$2e DMACTL
@@ -49,7 +64,7 @@ image
     mva #$8 COLPF1
     mva #$c COLPF2
     lda VCOUNT
-    cmp #123
+    cmp #124
     bne image
     ldx #0
 blank
@@ -57,6 +72,8 @@ blank
     and #$c
     ora fine
     tax
+    lda joyedgetable,x
+    sta edgeoff
     lda joyfinetable,x
     sta HSCROL
     sta fine
@@ -80,11 +97,65 @@ updlist
     ldx coarse+1
     :15 mva scrhi1,x+ dlist+2+6*#
     lda coarse+1
-    adc 0
+    adc #0
     tax
     :15 mva scrhi2,x+ dlist+5+6*#
-
+    jsr drawedgetiles
     jmp showframe
+
+drawedgetiles
+    lda coarse
+    add edgeoff
+    sta drawpos+1
+    lda coarse+1
+    adc #0
+    sta drawpos+2
+
+    lda drawpos+1
+    sta mappos
+    and #3
+    sta mapfrac
+    lda drawpos+2
+    and #$f
+    lsr @
+    sta mappos+1
+    ror mappos
+    lsr mappos+1
+    ror mappos
+    lsr @
+    add >[map+$200]
+    sta mappos+1
+
+    mva #10 mapy
+edge
+    ldy #0
+    lda (mappos),y
+    tax
+    lda tilex16,x
+    ldx mapfrac
+    add tilefrac,x
+    tax
+drawpos
+    stx:inx scr
+    lda drawpos+1
+    add #$80
+    sta drawpos+1
+    bcc skiphi
+    lda drawpos+2
+    adc #0
+    cmp >[scr+4096]
+    bne donehi
+    lda >scr
+donehi
+    sta drawpos+2
+skiphi
+    iny
+    cpy #4
+    bne drawpos
+    inc mappos+1
+    dec mapy
+    bne edge
+    rts
 
     ; RIGHT,LEFT,FINE -> DCOARSE,FINE
     ; 0,0,X -> 0,X
@@ -101,46 +172,19 @@ joyfinetable
     :4 dta [#+3]%4
     :4 dta [#+1]%4
     :4 dta #
+joyedgetable
+    :8 dta 48
+    :8 dta 0
 scrhi1
     :256 dta >[scr+[#*$100]&$fff]
 scrhi2
     :256 dta >[scr+[$80+#*$100]&$fff]
+tilex16
+    :8 dta #*16
+tilefrac
+    :4 dta #*4
 
     org dlist
     :30 dta $74,a(scr+#<<7)
-    org scr
-    :256 dta 0
-    :32 dta 48+0,48+4,48+8,48+12
-    :32 dta 48+1,48+5,48+9,48+13
-    :32 dta 48+2,48+6,48+10,48+14
-    :32 dta 48+3,48+7,48+11,48+15
-    :32 dta 80+0,80+4,80+8,80+12
-    :32 dta 80+1,80+5,80+9,80+13
-    :32 dta 80+2,80+6,80+10,80+14
-    :32 dta 80+3,80+7,80+11,80+15
-    :32 dta 96+0,96+4,96+8,96+12
-    :32 dta 96+1,96+5,96+9,96+13
-    :32 dta 96+2,96+6,96+10,96+14
-    :32 dta 96+3,96+7,96+11,96+15
-    :32 dta 112+0,112+4,112+8,112+12
-    :32 dta 112+1,112+5,112+9,112+13
-    :32 dta 112+2,112+6,112+10,112+14
-    :32 dta 112+3,112+7,112+11,112+15
-    :32 dta 64+0,64+4,64+8,64+12
-    :32 dta 64+1,64+5,64+9,64+13
-    :32 dta 64+2,64+6,64+10,64+14
-    :32 dta 64+3,64+7,64+11,64+15
-    :32 dta 32+0,32+4,32+8,32+12
-    :32 dta 32+1,32+5,32+9,32+13
-    :32 dta 32+2,32+6,32+10,32+14
-    :32 dta 32+3,32+7,32+11,32+15
-    :1 dta 96+0,96+4,96+8,96+12
-    :31 dta 16+0,16+4,16+8,16+12
-    :1 dta 96+1,96+5,96+9,96+13
-    :31 dta 16+1,16+5,16+9,16+13
-    :1 dta 96+2,96+6,96+10,96+14
-    :31 dta 16+2,16+6,16+10,16+14
-    :1 dta 96+3,96+7,96+11,96+15
-    :31 dta 16+3,16+7,16+11,16+15
     icl 'assets.asm'
     run main
