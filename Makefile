@@ -4,6 +4,8 @@ tiles.run:
 tiles.obx: assets.asm
 assets.asm: foo.json pal.ppm foo.png json2am
 	./json2am $^ > $@
+foo.png: ruff-tiles.png
+	convert +dither -compress none $< -remap pal.ppm $@
 
 atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 

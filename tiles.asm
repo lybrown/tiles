@@ -7,12 +7,14 @@ mapfrac equ $85
 tilepos equ $86
 mapy equ $88
 edgeoff equ $89
+tmp equ $8a
 main equ $2000
 chset equ $3000
 dlist equ $3400
 pm equ $3800
 scr equ $4000
-map equ $5000
+map equ $6000
+linewidth equ $40
     org main
     sei
     lda #0
@@ -31,12 +33,11 @@ map equ $5000
     mva <scr coarse
     mva >scr coarse+1
     mva >chset CHBASE
-    lda coarse
-    add 48
 initdraw
     jsr drawedgetiles
     inc coarse
-    cmp coarse
+    lda coarse
+    cmp #49
     bne initdraw
     mva <scr coarse
 
@@ -90,16 +91,28 @@ coarseup
     sne:inc coarse+1
 
 updlist
+    ldx #0
     lda coarse
-    :15 sta dlist+1+6*#
-    add #$80
-    :15 sta dlist+4+6*#
-    ldx coarse+1
-    :15 mva scrhi1,x+ dlist+2+6*#
+    :8 sta dlist+1+12*#
+    add #linewidth
+    scc:ldx #3
+    :8 sta dlist+4+12*#
+    add #linewidth
+    scc:ldx #2
+    :8 sta dlist+7+12*#
+    add #linewidth
+    scc:ldx #1
+    :7 sta dlist+10+12*#
+
     lda coarse+1
-    adc #0
+    and #$f
+    :2 asl @
+    sta tmp
+    txa
+    ora tmp
     tax
-    :15 mva scrhi2,x+ dlist+5+6*#
+    :31 dta {lda a:,x},a(coarsehitable),{sta a:},a(dlist+2+3*#),{inx}
+
     jsr drawedgetiles
     jmp showframe
 
@@ -123,7 +136,7 @@ drawedgetiles
     lsr mappos+1
     ror mappos
     lsr @
-    add >[map+$200]
+    add >[map+8*linewidth]
     sta mappos+1
 
     mva #10 mapy
@@ -138,7 +151,7 @@ edge
 drawpos
     stx:inx scr
     lda drawpos+1
-    add #$80
+    add #linewidth
     sta drawpos+1
     bcc skiphi
     lda drawpos+2
@@ -175,16 +188,14 @@ joyfinetable
 joyedgetable
     :8 dta 48
     :8 dta 0
-scrhi1
-    :256 dta >[scr+[#*$100]&$fff]
-scrhi2
-    :256 dta >[scr+[$80+#*$100]&$fff]
 tilex16
     :8 dta #*16
 tilefrac
     :4 dta #*4
+coarsehitable
+    :128 dta >[scr+[[#*linewidth]&$fff]]
 
     org dlist
-    :30 dta $74,a(scr+#<<7)
+    :30 dta $54,a(scr+#<<6)
     icl 'assets.asm'
     run main
