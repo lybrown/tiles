@@ -1,7 +1,7 @@
 # $Id: Makefile 36 2008-06-29 23:46:07Z lybrown $
 
 tiles.run:
-tiles.obx: assets.asm
+tiles.obx: assets.asm tmc2play.asm
 assets.asm: foo.json pal.ppm foo.png json2am
 	./json2am $^ > $@
 foo.png: ruff-tiles.png
@@ -30,4 +30,4 @@ atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 clean:
 	rm -f *.{obx,atr,lst} *.{tmc,tm2,pgm,wav}.asm *~
 
-.PRECIOUS: %.obx %.xex %.ppm %.asm
+.PRECIOUS: %.xex %.ppm %.asm

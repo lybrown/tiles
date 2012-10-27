@@ -8,31 +8,17 @@ tilepos equ $86
 mapy equ $88
 edgeoff equ $89
 tmp equ $8a
+sfx equ $8b
 main equ $2000
 chset equ $3000
 dlist equ $3400
 pm equ $3800
 song equ $4000
 player equ $6000
-scr equ $8000
-map equ $a000
+scr equ $9000
+map equ $b000
 linewidth equ $40
     org main
-music_init
-    lda #$70
-    ldy <song
-    ldx >song
-    jsr player+$300 ; init
-    lda #0
-    tax
-    jsr player+$300 ; init
-    rts
-
-music_frame
-    ; Uncomment to enable music
-    jsr player+$303 ; play
-    rts
-
 start
     sei
     lda #0
@@ -48,7 +34,13 @@ start
     sta COLBK
     sta fine
     sta edgeoff
-    jsr music_init
+    lda #$70
+    ldy <song
+    ldx >song
+    jsr player+$300 ; init
+    lda #0
+    tax
+    jsr player+$300 ; init
     mva <scr coarse
     mva >scr coarse+1
     mva >chset CHBASE
@@ -88,7 +80,18 @@ image
     bne image
     ldx #0
 blank
-    jsr music_frame
+    inc:lda sfx
+    and #$1f
+    bne nosfx
+    lda sfx
+    and #$3f
+    seq:ldy #$b
+    sne:ldy #$c
+    lda #$23
+    ldx #1
+    jsr player+$300 ; play sfx
+nosfx
+    jsr player+$303 ; play music
     lda PORTA
     and #$c
     ora fine
@@ -220,7 +223,7 @@ coarsehitable
     dta $41,a(dlist)
     icl 'assets.asm'
     org song
-    ins 'ruff7.tm2',6
+    ins 'ruffw1.tm2',6
     org player
     icl 'tmc2play.asm'
     run start
