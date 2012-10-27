@@ -12,10 +12,28 @@ main equ $2000
 chset equ $3000
 dlist equ $3400
 pm equ $3800
-scr equ $4000
-map equ $6000
+song equ $4000
+player equ $6000
+scr equ $8000
+map equ $a000
 linewidth equ $40
     org main
+music_init
+    lda #$70
+    ldy <song
+    ldx >song
+    jsr player+$300 ; init
+    lda #0
+    tax
+    jsr player+$300 ; init
+    rts
+
+music_frame
+    ; Uncomment to enable music
+    jsr player+$303 ; play
+    rts
+
+start
     sei
     lda #0
     sta IRQEN
@@ -30,6 +48,7 @@ linewidth equ $40
     sta COLBK
     sta fine
     sta edgeoff
+    jsr music_init
     mva <scr coarse
     mva >scr coarse+1
     mva >chset CHBASE
@@ -69,6 +88,7 @@ image
     bne image
     ldx #0
 blank
+    jsr music_frame
     lda PORTA
     and #$c
     ora fine
@@ -197,5 +217,10 @@ coarsehitable
 
     org dlist
     :30 dta $54,a(scr+#<<6)
+    dta $41,a(dlist)
     icl 'assets.asm'
-    run main
+    org song
+    ins 'ruff7.tm2',6
+    org player
+    icl 'tmc2play.asm'
+    run start

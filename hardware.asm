@@ -64,7 +64,7 @@ AUDF3   equ $d204
 AUDC3   equ $d205
 AUDF4   equ $d206
 AUDC4   equ $d207
-AUDCTL  equ $d208
+;AUDCTL  equ $d208
 STIMER  equ $d209
 SKREST  equ $d20a
 POTGO   equ $d20b
