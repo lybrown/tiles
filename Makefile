@@ -2,14 +2,12 @@
 
 tiles.run:
 tiles.obx: assets.asm tmc2play.asm
-assets.asm: foo.json pal.ppm foo.png json2am
+assets.asm: tiles.json pal.ppm tileset.png json2am
 	./json2am $^ > $@
-foo.png: ruff-tiles.png
-	convert +dither -compress none $< -remap pal.ppm $@
 
 atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 
-%.ppm: orig/%.png
+%.png: %-fullcolor.png
 	convert +dither -compress none $< -remap pal.ppm $@
 
 %.run: %.xex

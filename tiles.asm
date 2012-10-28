@@ -8,17 +8,44 @@ tilepos equ $86
 mapy equ $88
 edgeoff equ $89
 tmp equ $8a
-sfx equ $8b
+framecount equ $8b
 main equ $2000
-chset equ $3000
-dlist equ $3400
-pm equ $3800
+dlist equ $3000
+pm equ $3400
 song equ $4000
 player equ $6000
 scr equ $9000
 map equ $b000
+chset equ $c000
+buffer equ $8000
 linewidth equ $40
     org main
+relocate
+    sei
+    lda #0
+    sta IRQEN
+    sta NMIEN
+    sta DMACTL
+    mva PORTB tmp
+    ldx buffer+4
+    lda banks,x
+    sta PORTB
+    mwa #buffer+5 ld+1
+    mwa buffer st+1
+ld  lda $ffff
+st  sta $ffff
+    inc ld+1
+    sne:inc ld+2
+    inc st+1
+    sne:inc st+2
+    lda st+1
+    cmp buffer+2
+    bne ld
+    lda st+2
+    cmp buffer+3
+    bne ld
+    mva #$82 PORTB
+    rts
 start
     sei
     lda #0
@@ -80,17 +107,20 @@ image
     bne image
     ldx #0
 blank
-    inc:lda sfx
+    inc:lda framecount
     and #$1f
     bne nosfx
-    lda sfx
+    lda framecount
     and #$3f
     seq:ldy #$b
     sne:ldy #$c
     lda #$23
     ldx #1
-    jsr player+$300 ; play sfx
+    ;jsr player+$300 ; play sfx
 nosfx
+    and #$c
+    ora >chset
+    sta CHBASE
     jsr player+$303 ; play music
     lda PORTA
     and #$c
@@ -217,6 +247,9 @@ tilefrac
     :4 dta #*4
 coarsehitable
     :128 dta >[scr+[[#*linewidth]&$fff]]
+banks
+    :64 dta $82
+    ;:64 dta [[#*4]&$e0] | [[#*2]&$f] | $01
 
     org dlist
     :30 dta $54,a(scr+#<<6)

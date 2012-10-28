@@ -57,7 +57,7 @@ sub dump_tile {
     my $tileheight = $tileset->{tileheight} or die;
     my $dy = int($imagewidth / $tilewidth);
     my $xo = $tilewidth * (($tile - 1) % $dy);
-    my $yo = $tileheight * int(($tile - 1) / $dy + 0.5);
+    my $yo = $tileheight * int(($tile - 1) / $dy);
     warn "TILE: $tile: DY: $dy XO: $xo YO: $yo\n";
     my @pixels;
     for (my $x = $xo; $x < $xo + $tilewidth; $x += 4) {
@@ -91,7 +91,6 @@ sub dump_chset {
         splice @chset, 0, 8*128;
     }
     my $ch = 0;
-    print "  org chset\n";
     print "  dta ", (join ",", splice @chset, 0, 8), " ; ", $ch++, "\n" while @chset;
 }
 
@@ -112,7 +111,13 @@ sub main {
     my @tiles = sort { $counts{$b} <=> $counts{$a} } keys %counts;
     my %raw2tile = map { $tiles[$_] => $_+1 } 0 .. $#tiles;
     my @map = map { $raw2tile{$_} || 0 } @$data;
-    dump_chset($map, $palimage, \@tiles);
+    print "  org buffer\n";
+    print "  ; Dest Start Address, Dest End Address, Bank\n";
+    print "  dta a(chset),a(chset+\$1000),0\n";
+    for my $set (0 .. 3) {
+        dump_chset($map, $palimage, [map $_+$set*8, @tiles]);
+    }
+    print "  ini relocate\n";
     dump_map(\@map);
 }
 
