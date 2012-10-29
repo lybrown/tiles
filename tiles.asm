@@ -91,13 +91,13 @@ inflate
     sta COLPM2
     sta COLPM3
     mva #hx HPOSP0
-    sta HPOSM0
-    mva #hx+8 HPOSP1
-    sta HPOSM1
-    mva #hx+16 HPOSP2
-    sta HPOSM2
-    mva #hx+24 HPOSP3
     sta HPOSM3
+    mva #hx+8 HPOSP1
+    sta HPOSM2
+    mva #hx+16 HPOSP2
+    sta HPOSM1
+    mva #hx+24 HPOSP3
+    sta HPOSM0
 
     mva #$82 PORTB
     lda #$70
@@ -163,7 +163,7 @@ nosfx
     sta CHBASE
     lda framecount
     and #$3C
-    asl @
+    :1 asl @
     ora #$40
     sta PMBASE
     jsr player+$303 ; play music

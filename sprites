@@ -41,7 +41,11 @@ sub byte {
 }
 
 sub mbyte {
-    my @mask = map { (grep $_, @_[$_*4 .. $_*4+3]) ? 1 : 0 } 0 .. @_/4-1;
+    my @mask = map { (grep $_, @_[$_*4 .. $_*4+3]) ? 1 : 0 } 0 .. 7;
+    my @mask = map {
+        ($_>0 && $mask[$_-1]||0 or $_>1 && $mask[$_-2]||0) and
+        ($mask[$_+1]||0 or $mask[$_+2]||0) or
+        $mask[$_] } 0 .. 7;
     byte(@mask);
 }
 
@@ -53,8 +57,8 @@ sub frame {
     @bw = reverse @bw if $rev;
     my @range = 0 .. $height-1;
     @range = reverse @range if $rev;
-    #my @mbytes = map((mbyte(@bw[$_*32 .. $_*32+31])) x 2, @range);
-    my @mbytes = map((0xff) x 2, @range);
+    my @mbytes = map((mbyte(@bw[$_*32 .. $_*32+31])) x 2, @range);
+    #my @mbytes = map((0xff) x 2, @range);
     my $dst = $pmbase + 0x300 + $yoff;
     print "  ; missiles\n";
     block(num($dst), num($dst + $height), $bank, \@mbytes);
