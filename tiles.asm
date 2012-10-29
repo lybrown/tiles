@@ -1,14 +1,18 @@
     opt l-h+f-
     icl 'hardware.asm'
-coarse equ $80
-fine equ $82
-mappos equ $83
-mapfrac equ $85
-tilepos equ $86
-mapy equ $88
-edgeoff equ $89
-tmp equ $8a
-framecount equ $8b
+    org $80
+coarse org *+2
+fine org *+1
+mappos org *+2
+mapfrac org *+1
+tilepos org *+2
+mapy org *+1
+edgeoff org *+1
+tmp org *+1
+framecount org *+1
+pmbank org *+1
+inflate_zp equ $f0
+
 main equ $2000
 dlist equ $3000
 pm equ $3400
@@ -19,6 +23,9 @@ map equ $b000
 chset equ $c000
 buffer equ $8000
 linewidth equ $40
+hx equ 100
+hy equ 100
+
     org main
 relocate
     sei
@@ -26,7 +33,7 @@ relocate
     sta IRQEN
     sta NMIEN
     sta DMACTL
-    mva PORTB tmp
+    cmp:rne VCOUNT
     ldx buffer+4
     lda banks,x
     sta PORTB
@@ -44,23 +51,55 @@ st  sta $ffff
     lda st+2
     cmp buffer+3
     bne ld
-    mva #$82 PORTB
+    mva #$83 PORTB
     rts
-start
+banks
+    :64 dta $82+[[#%4]<<2]
+    ;:64 dta [[#*4]&$e0] | [[#*2]&$f] | $01
+inflate
+    icl 'inflate.asm'
+
+    org dlist
+    :30 dta $54,a(scr+#<<6)
+    dta $41,a(dlist)
+    icl 'assets.asm'
+    icl 'sprites.asm'
+    org song
+    ins 'ruffw1.tm2',6
+    org player
+    icl 'tmc2play.asm'
+
+    org main
     sei
     lda #0
     sta IRQEN
     sta NMIEN
     sta DMACTL
-    sta GRACTL
-    sta GRAFP0
-    sta GRAFP1
-    sta GRAFP2
-    sta GRAFP3
-    sta GRAFM
     sta COLBK
     sta fine
     sta edgeoff
+    sta COLPF3
+    sta SIZEP0
+    sta SIZEP1
+    sta SIZEP2
+    sta SIZEP3
+    mva #$ff SIZEM
+    mva #$11 PRIOR
+    mva #3 GRACTL
+    mva #$3a COLPM0
+    sta COLPM1
+    sta COLPM2
+    sta COLPM3
+    mva #hx HPOSP0
+    sta HPOSM0
+    mva #hx+8 HPOSP1
+    sta HPOSM1
+    mva #hx+16 HPOSP2
+    sta HPOSM2
+    mva #hx+24 HPOSP3
+    sta HPOSM3
+
+    mva #$82 PORTB
     lda #$70
     ldy <song
     ldx >song
@@ -68,8 +107,7 @@ start
     lda #0
     tax
     jsr player+$300 ; init
-    mva <scr coarse
-    mva >scr coarse+1
+    mwa #scr coarse
     mva >chset CHBASE
 initdraw
     jsr drawedgetiles
@@ -79,13 +117,14 @@ initdraw
     bne initdraw
     mva <scr coarse
 
-    mva #$22 DMACTL
+    ;mva #$22 DMACTL
     ;mva #$2d DMACTL
-    ;mva #$2e DMACTL
+    mva #$3e DMACTL
 showframe
     lda #3
     cmp:rne VCOUNT
     sta WSYNC
+    mva pmbank PORTB
     mva <dlist DLISTL
     mva >dlist DLISTH
     ldx #0
@@ -94,9 +133,9 @@ image
     ldy #$d2
     lda #$32
     :3 nop
-    sta WSYNC
     sta COLPF0
     stx COLPF1
+    sta WSYNC
     sty COLPF2
     sta WSYNC
     mva #$6 COLPF0
@@ -107,6 +146,7 @@ image
     bne image
     ldx #0
 blank
+    mva #$82 PORTB
     inc:lda framecount
     and #$1f
     bne nosfx
@@ -118,14 +158,21 @@ blank
     ldx #1
     ;jsr player+$300 ; play sfx
 nosfx
-    and #$c
+    and #$C
     ora >chset
     sta CHBASE
+    lda framecount
+    and #$3C
+    asl @
+    ora #$40
+    sta PMBASE
     jsr player+$303 ; play music
     lda PORTA
     and #$c
     ora fine
     tax
+    lda joydirtable,x
+    sta pmbank
     lda joyedgetable,x
     sta edgeoff
     lda joyfinetable,x
@@ -241,22 +288,15 @@ joyfinetable
 joyedgetable
     :8 dta 48
     :8 dta 0
+joydirtable
+    dta $86,$86,$86,$86
+    dta $86,$86,$86,$86
+    dta $8A,$8A,$8A,$8A
+    dta $8E,$8E,$8E,$8E
 tilex16
     :8 dta #*16
 tilefrac
     :4 dta #*4
 coarsehitable
     :128 dta >[scr+[[#*linewidth]&$fff]]
-banks
-    :64 dta $82
-    ;:64 dta [[#*4]&$e0] | [[#*2]&$f] | $01
-
-    org dlist
-    :30 dta $54,a(scr+#<<6)
-    dta $41,a(dlist)
-    icl 'assets.asm'
-    org song
-    ins 'ruffw1.tm2',6
-    org player
-    icl 'tmc2play.asm'
-    run start
+    run main
