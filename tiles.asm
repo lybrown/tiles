@@ -22,6 +22,8 @@ scr equ $9000
 map equ $b000
 chset equ $c000
 buffer equ $8000
+mapheight equ 14
+mapwidth equ 256
 linewidth equ $40
 hx equ 100
 hy equ 100
@@ -86,7 +88,7 @@ inflate
     mva #$ff SIZEM
     mva #$11 PRIOR
     mva #3 GRACTL
-    mva #$3a COLPM0
+    mva #$3f COLPM0
     sta COLPM1
     sta COLPM2
     sta COLPM3
@@ -205,6 +207,8 @@ updlist
     :7 sta dlist+10+12*#
 
     lda coarse+1
+    ; y offset - jump
+    add #6
     and #$f
     :2 asl @
     sta tmp
@@ -236,10 +240,10 @@ drawedgetiles
     lsr mappos+1
     ror mappos
     lsr @
-    add >[map+8*linewidth]
+    add >map
     sta mappos+1
 
-    mva #10 mapy
+    mva #mapheight mapy
 edge
     ldy #0
     lda (mappos),y
@@ -275,6 +279,34 @@ skiphi
     ; 0,1,X -> (X==0),(X-1)%4
     ; 1,0,X -> -(X==3),(X+1)%4
     ; 1,1,X -> 0,X
+fullspeed equ 0
+halfspeed equ 1
+quarterspeed equ 0
+    ift fullspeed
+joycoarsetable
+    :4 dta 0
+    dta 1,1,1,1
+    dta $ff,$ff,$ff,$ff
+    :4 dta 0
+joyfinetable
+    :4 dta #
+    :4 dta 0
+    :4 dta 0
+    :4 dta #
+    eif
+    ift halfspeed
+joycoarsetable
+    :4 dta 0
+    dta 1,1,0,0
+    dta 0,0,$ff,$ff
+    :4 dta 0
+joyfinetable
+    :4 dta #
+    dta 2,2,0,0
+    dta 2,2,0,0
+    :4 dta #
+    eif
+    ift quarterspeed
 joycoarsetable
     :4 dta 0
     dta 1,0,0,0
@@ -285,6 +317,7 @@ joyfinetable
     :4 dta [#+3]%4
     :4 dta [#+1]%4
     :4 dta #
+    eif
 joyedgetable
     :8 dta 48
     :8 dta 0

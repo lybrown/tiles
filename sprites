@@ -64,7 +64,7 @@ sub frame {
     block(num($dst), num($dst + $height), $bank, \@mbytes);
     for my $player (0 .. 3) {
 	my $off = $player * 8;
-	my @pbytes = map((byte(@bw[$_*32+$off .. $_*32+$off+7])) x 2, @range);
+	my @pbytes = map((0, byte(@bw[$_*32+$off .. $_*32+$off+7])), @range);
 	my $dst = $pmbase + 0x400 + $player*0x100 + $yoff;
         print "  ; player $player\n";
 	block(num($dst), num($dst + $height), $bank, \@pbytes);
