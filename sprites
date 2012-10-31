@@ -6,7 +6,7 @@ use Data::Dumper;
 $Data::Dumper::Indent = 1;
 
 my $height = 44*2;
-my $yoff = 112;
+my $yoff = 114;
 
 sub readimage {
     my ($file) = @_;
@@ -42,7 +42,7 @@ sub byte {
 
 sub mbyte {
     my @mask = map { (grep $_, @_[$_*4 .. $_*4+3]) ? 1 : 0 } 0 .. 7;
-    my @mask = map {
+    @mask = map {
         ($_>0 && $mask[$_-1]||0 or $_>1 && $mask[$_-2]||0) and
         ($mask[$_+1]||0 or $mask[$_+2]||0) or
         $mask[$_] } 0 .. 7;
@@ -74,14 +74,12 @@ sub frame {
 sub main {
     my $image = readimage($ARGV[0]);
     for my $rev (0, 1) {
-        for my $y (0, 2) {
-            for my $x (0 .. 3) {
-                my $pmbase = 0x4000 + $x * 0x800 + ($y ? 0x2000 : 0);
-                frame($image, $x*32, $y*32, $pmbase, $rev, $rev+1);
-            }
+        for my $x (0 .. 7) {
+            my $pmbase = 0x4000 + $x * 0x800;
+            frame($image, $x*32, 0, $pmbase, $rev, $rev+1);
         }
     }
-    frame($image, 4*32, 0, 0x4000 + $_*0x800, 0, 3) for 0 .. 7;
+    frame($image, 0, 64, 0x4000 + $_*0x800, $_&1, 3) for 0 .. 7;
 }
 
 main();

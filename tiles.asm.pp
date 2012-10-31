@@ -11,6 +11,11 @@ edgeoff org *+1
 tmp org *+1
 framecount org *+1
 pmbank org *+1
+scrpos org *+2
+ypos org *+2
+jcount org *+1
+veldir org *+2
+pos org *+2
 inflate_zp equ $f0
 
 main equ $2000
@@ -20,7 +25,7 @@ song equ $4000
 player equ $6000
 scr equ $9000
 map equ $b000
-chset equ $c000
+chset equ $e000
 buffer equ $8000
 mapheight equ 14
 mapwidth equ 256
@@ -168,7 +173,19 @@ nosfx
     :1 asl @
     ora #$40
     sta PMBASE
-    jsr player+$303 ; play music
+    ;jsr player+$303 ; play music
+    ldx jcount
+    bne midjump
+    lda PORTA
+    and #1
+    sne:mva #jsteps-1 jcount
+    ldx jcount
+    beq donejump
+midjump
+    dec jcount
+donejump
+    mva jumplo,x ypos
+    mva jumphi,x ypos+1
     lda PORTA
     and #$c
     ora fine
@@ -193,8 +210,15 @@ coarseup
     sne:inc coarse+1
 
 updlist
-    ldx #0
     lda coarse
+    add ypos
+    sta scrpos
+    lda coarse+1
+    adc ypos+1
+    sta scrpos+1
+
+    ldx #0
+    lda scrpos
     :8 sta dlist+1+12*#
     add #linewidth
     scc:ldx #3
@@ -206,9 +230,7 @@ updlist
     scc:ldx #1
     :7 sta dlist+10+12*#
 
-    lda coarse+1
-    ; y offset - jump
-    add #6
+    lda scrpos+1
     and #$f
     :2 asl @
     sta tmp
@@ -279,8 +301,8 @@ skiphi
     ; 0,1,X -> (X==0),(X-1)%4
     ; 1,0,X -> -(X==3),(X+1)%4
     ; 1,1,X -> 0,X
-fullspeed equ 0
-halfspeed equ 1
+fullspeed equ 1
+halfspeed equ 0
 quarterspeed equ 0
     ift fullspeed
 joycoarsetable
@@ -326,10 +348,59 @@ joydirtable
     dta $86,$86,$86,$86
     dta $8A,$8A,$8A,$8A
     dta $8E,$8E,$8E,$8E
+    ; PORTA bits: right,left,down,up
+    ; variables: velocity, frame, bank, dir
+    ; vi+=1 if right, clamp max
+    ; vi-=1 if left, clamp min
+    ; vi+=sign(v) if !right and !left, clamp 0
+    ; dir=1 if v>0
+    ; dir=0 if v<0
+    ; dir'=dir if v==0
+    ; p+=v[vi]
+    ; framei=0 if v==0
+    ; framei+=1 if v!=0, modulus
+    ; bank=1 if v>0 or (dir and jump)
+    ; bank=2 if v<0 or (!dir and jump)
+    ; bank=3 if v==0
+    ; PMBASE=4 if jump
+    ; PMBASE=pmbase[framei] if v!=0
+    ; PMBASE=0 if v==0 and dir
+    ; PMBASE=1 if v==0 and !dir
+
+    lda PORTA
+    and #%1100
+    :4 asl @
+    ora veldir
+    tax
+    lda veldirtable,x
+    sta veldir
+    tax
+    lda veltable,x
+    tax
+    add pos
+    sta pos
+    scc:inc pos+1
+
+veldirtable
+    :256 dta 0
+veltable
+    :64 dta 0
+
+
+>>> my $steps = 33;
+>>> print "jsteps equ $steps\n";
+>>> my $acc = 3.25/(($steps-1)/2)**2;
+>>> my @traj = map { 2.75+$acc*$_*$_ } -$steps/2 .. $steps/2;
+jumplo
+>>> printf "    dta %d\n", (int($_*4)&3)*0x40 for @traj;
+jumphi
+>>> printf "    dta %d\n", int($_) for @traj;
+jumpvscrol
+>>> printf "    dta %d\n", int($_*32)&6 for @traj;
 tilex16
     :8 dta #*16
 tilefrac
     :4 dta #*4
 coarsehitable
-    :128 dta >[scr+[[#*linewidth]&$fff]]
+    :256 dta >[scr+[[#*linewidth]&$fff]]
     run main
