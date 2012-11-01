@@ -5,7 +5,7 @@ use Image::Magick;
 use Data::Dumper;
 $Data::Dumper::Indent = 1;
 
-my $height = 44*2;
+my $height = 44;
 my $yoff = 114;
 
 sub readimage {
@@ -22,11 +22,13 @@ sub num { sprintf "\$%x", $_[0] }
 sub block {
     my ($start, $end, $bank, $data) = @_;
     my @data = @$data;
-    print "  org buffer\n";
-    print "  ; Dest Start Address, Dest End Address+1, Bank\n";
-    print "  dta a($start),a($end),$bank\n";
+#    print "  org buffer\n";
+#    print "  ; Dest Start Address, Dest End Address+1, Bank\n";
+#    print "  dta a($start),a($end),$bank\n";
+#    print "  dta ",(join",",splice @data, 0, 16),"\n" while @data;
+#    print "  ini relocate\n";
+    print "  org $start\n";
     print "  dta ",(join",",splice @data, 0, 16),"\n" while @data;
-    print "  ini relocate\n";
 }
 
 sub byte {
@@ -74,11 +76,15 @@ sub frame {
 sub main {
     my $image = readimage($ARGV[0]);
     for my $rev (0, 1) {
+        print "    ini bank", $rev+1, "\n";
+        print "    ini clearbank\n";
         for my $x (0 .. 7) {
             my $pmbase = 0x4000 + $x * 0x800;
             frame($image, $x*32, 0, $pmbase, $rev, $rev+1);
         }
     }
+    print "    ini bank3\n";
+    print "    ini clearbank\n";
     frame($image, 0, 64, 0x4000 + $_*0x800, $_&1, 3) for 0 .. 7;
 }
 

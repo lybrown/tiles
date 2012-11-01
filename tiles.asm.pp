@@ -58,19 +58,55 @@ st  sta $ffff
     lda st+2
     cmp buffer+3
     bne ld
+bank0
     mva #$83 PORTB
+    rts
+bank1
+    mva #$87 PORTB
+    rts
+bank2
+    mva #$8b PORTB
+    rts
+bank3
+    mva #$8f PORTB
+    rts
+clearbank
+    ;rts
+    mva #$40 clearst+2
+    mva #$60 clearst+5
+    ldx #0
+    lda #0
+    ldy #$60
+clearst
+    sta $4000,x
+    sta $6000,x
+    inx
+    bne clearst
+    inc clearst+2
+    inc clearst+5
+    cpy clearst+2
+    bne clearst
     rts
 banks
     :64 dta $82+[[#%4]<<2]
     ;:64 dta [[#*4]&$e0] | [[#*2]&$f] | $01
-inflate
-    icl 'inflate.asm'
+;inflate
+;    icl 'inflate.asm'
+disable_antic
+    lda #0
+    cmp:rne VCOUNT
+    sta 559 ; DMACTL shadow
+    lda #128
+    cmp:rne VCOUNT
+    rts
+    ini disable_antic
 
     org dlist
     :30 dta $54,a(scr+#<<6)
     dta $41,a(dlist)
     icl 'assets.asm'
     icl 'sprites.asm'
+    ini bank0
     org song
     ins 'ruffw1.tm2',6
     org player
@@ -124,9 +160,12 @@ initdraw
     bne initdraw
     mva <scr coarse
 
+    lda #124
+    cmp:rne VCOUNT
     ;mva #$22 DMACTL
     ;mva #$2d DMACTL
     mva #$3e DMACTL
+    jmp blank
 showframe
     lda #3
     cmp:rne VCOUNT
@@ -140,8 +179,8 @@ image
     ldy #$d2
     lda #$32
     :3 nop
-    sta COLPF0
     stx COLPF1
+    sta COLPF0
     sta WSYNC
     sty COLPF2
     sta WSYNC
@@ -173,19 +212,8 @@ nosfx
     :1 asl @
     ora #$40
     sta PMBASE
-    ;jsr player+$303 ; play music
-    ldx jcount
-    bne midjump
-    lda PORTA
-    and #1
-    sne:mva #jsteps-1 jcount
-    ldx jcount
-    beq donejump
-midjump
-    dec jcount
-donejump
-    mva jumplo,x ypos
-    mva jumphi,x ypos+1
+    jsr player+$303 ; play music
+xmove
     lda PORTA
     and #$c
     ora fine
@@ -198,16 +226,33 @@ donejump
     sta HSCROL
     sta fine
     lda joycoarsetable,x
-    beq updlist
+    beq donexmove
     bpl coarseup
 coarsedown
     lda coarse
     sne:dec coarse+1
     dec coarse
-    jmp updlist
+    jmp donexmove
 coarseup
     inc coarse
     sne:inc coarse+1
+donexmove
+
+ymove
+    ldx jcount
+    bne midjump
+    lda PORTA
+    and #1
+    sne:mva #jsteps jcount
+    ldx jcount
+    beq donejump
+midjump
+    ;mva #$86 pmbank
+    ;mva #$60 PMBASE
+    dec jcount
+donejump
+    mva jumplo,x ypos
+    mva jumphi,x ypos+1
 
 updlist
     lda coarse
@@ -237,7 +282,7 @@ updlist
     txa
     ora tmp
     tax
-    :31 dta {lda a:,x},a(coarsehitable),{sta a:},a(dlist+2+3*#),{inx}
+    :31 dta {lda a:,x},a(coarsehitable+#),{sta a:},a(dlist+2+3*#)
 
     jsr drawedgetiles
     jmp showframe
@@ -383,14 +428,25 @@ joydirtable
 
 veldirtable
     :256 dta 0
+>>> for my $rightb (0, 1) {
+>>> for my $leftb (0, 1) {
+>>> for my $vel (0 .. 32) {
+>>> for my $dir (0, 1) {
+>>>   my $dir = !$rightb ? 1 : !$leftb ? 0 : $dir;
+>>>   my $vel = (!$rightb || !$leftb) ? $vel + 1 : $vel - 1;
+>>>   $vel = 0 if $vel < 0;
+>>>   $vel = 31 if $vel > 31;
+>>>   printf "    dta %d\n", $vel<<1|$dir;
+>>> }}}}
 veltable
     :64 dta 0
 
 
->>> my $steps = 33;
->>> print "jsteps equ $steps\n";
+>>> my $steps = 39;
+>>> print "jsteps equ ",$steps+2,"\n";
 >>> my $acc = 3.25/(($steps-1)/2)**2;
 >>> my @traj = map { 2.75+$acc*$_*$_ } -$steps/2 .. $steps/2;
+>>> unshift @traj, ($traj[-1]) x 3;
 jumplo
 >>> printf "    dta %d\n", (int($_*4)&3)*0x40 for @traj;
 jumphi
@@ -402,5 +458,6 @@ tilex16
 tilefrac
     :4 dta #*4
 coarsehitable
+    :256 dta >[scr+[[#*linewidth]&$fff]]
     :256 dta >[scr+[[#*linewidth]&$fff]]
     run main
