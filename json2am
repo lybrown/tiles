@@ -37,6 +37,7 @@ sub parsejson {
     my $text = join "", <$fh>;
     $text =~ s/:/=>/g;
     $text =~ s/=>true/=>1/g;
+    $text =~ s/=>false/=>0/g;
     my $struct = eval $text or die $@;
     return $struct;
 }

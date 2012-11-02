@@ -16,6 +16,7 @@ ypos org *+2
 jcount org *+1
 veldir org *+2
 pos org *+2
+blink org *+1
 inflate_zp equ $f0
 
 main equ $2000
@@ -102,7 +103,7 @@ disable_antic
     ini disable_antic
 
     org dlist
-    :30 dta $54,a(scr+#<<6)
+    :31 dta $54+[#==0]*$20,a(scr+#<<6)
     dta $41,a(dlist)
     icl 'assets.asm'
     icl 'sprites.asm'
@@ -142,6 +143,7 @@ disable_antic
     mva #hx+24 HPOSP3
     sta HPOSM0
 
+    mva #$50 blink
     mva #$82 PORTB
     lda #$70
     ldy <song
@@ -167,13 +169,71 @@ initdraw
     mva #$3e DMACTL
     jmp blank
 showframe
+    lda blink
+    seq:dec blink
+    ldx #0
+    and #2
+    sne:ldx #3
+    stx GRACTL
     lda #3
     cmp:rne VCOUNT
     sta WSYNC
     mva pmbank PORTB
     mva <dlist DLISTL
     mva >dlist DLISTH
-    ldx #0
+    ; Pal Blending per FJC, popmilo, XL-Paint Max, et al.
+    ; http://www.atariage.com/forums/topic/197450-mode-15-pal-blending/
+    ldx #$72
+    ldy #$d2
+    lda #$32
+    :3 nop
+    stx COLPF1
+    sta COLPF0
+    sta WSYNC
+    sty COLPF2
+    sta WSYNC
+    mva #$6 COLPF0
+    mva #$8 COLPF1
+    mva #$c COLPF2
+    ldx #$72
+    ldy #$d2
+    lda #$32
+    :3 nop
+    stx COLPF1
+    sta COLPF0
+    sta WSYNC
+    sty COLPF2
+    sta WSYNC
+    mva #$6 COLPF0
+    mva #$8 COLPF1
+    mva #$c COLPF2
+    ldx #$72
+    ldy #$d2
+    lda #$32
+    :3 nop
+    stx COLPF1
+    sta COLPF0
+    sta WSYNC
+    sty COLPF2
+    sta WSYNC
+    mva #$6 COLPF0
+    mva #$8 COLPF1
+    mva #$c COLPF2
+    ldx #$72
+    ldy #$d2
+    lda #$32
+    :3 nop
+    stx COLPF1
+    sta COLPF0
+    sta WSYNC
+    sty COLPF2
+    sta WSYNC
+    ; Full-screen vertical fine scrolling trick per Rybags:
+    ; http://www.atariage.com/forums/topic/154718-new-years-disc-2010/page__st__50#entry1911485
+    mva #$7 VSCROL
+    mva #$6 COLPF0
+    mva #$8 COLPF1
+    mva #$c COLPF2
 image
     ldx #$72
     ldy #$d2
@@ -253,6 +313,7 @@ midjump
 donejump
     mva jumplo,x ypos
     mva jumphi,x ypos+1
+    mva jumpvscrol,x VSCROL
 
 updlist
     lda coarse
