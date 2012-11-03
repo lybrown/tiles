@@ -19,7 +19,7 @@ atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 	cp $< $@
 
 %.asm.pl: %.asm.pp
-	perl -pe 's/^\s*>>>// or s/(.*)/print <<\\EOF;\n$$1\nEOF/' $< > $@
+	perl -pe 's/^\s*>>>// or s/(.*)/print <<'\''EOF'\'';\n$$1\nEOF/' $< > $@
 
 %.asm: %.asm.pl
 	perl $< > $@
@@ -37,4 +37,4 @@ gzip2deflate: gzip2deflate.c
 clean:
 	rm -f *.{obx,atr,lst} *.{tmc,tm2,pgm,wav}.asm *~
 
-.PRECIOUS: %.xex %.ppm %.asm
+.PRECIOUS: %.xex %.ppm %.asm %.asm.pl
