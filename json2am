@@ -98,8 +98,11 @@ sub dump_chset {
 sub dump_map {
     my ($map) = @_;
     my @copy = map $_-1, @$map;
-    print "  org map\n";
+    print "  org buffer\n";
+    print "  ; Dest Start Address, Dest End Address, Bank\n";
+    print "  dta a(map),a(map+\$2000),0\n";
     print "  dta ", (join ",", splice @copy, 0, 32), "\n" while @copy;
+    print "  ini relocate\n";
 }
 
 sub main {

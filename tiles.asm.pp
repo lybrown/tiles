@@ -132,6 +132,7 @@ disable_antic
     sta edgeoff
     sta xpos
     sta xpos+1
+    sta jcount
     sta COLPF3
     sta SIZEP0
     sta SIZEP1
@@ -153,6 +154,7 @@ disable_antic
     mva #hx+24 HPOSP3
     sta HPOSM0
 
+    mva #$ff veldir
     mva #$50 blink
     mva #$82 PORTB
     lda #$70
@@ -263,11 +265,15 @@ image
     bne image
 blank
     mva #$82 PORTB
-    ;jsr player+$303 ; play music
+    jsr player+$303 ; play music
+    inc:lda framecount
+    and #$c
+    ora >chset
+    sta CHBASE
 
 testsfx equ 0
     ift testsfx
-    inc:lda framecount
+    lda framecount
     and #$1f
     bne nosfx
     lda framecount
@@ -466,7 +472,7 @@ skiphi
     iny
     cpy #4
     bne drawpos
-    inc mappos+1
+    :2 inc mappos+1
     dec mapy
     bne edge
     rts
@@ -511,7 +517,7 @@ veldirtable
 >>>   printf "    dta %d\n", $dirn<<7|$veln;
 >>> }}}}
 veltablelo
-    :31 dta [[#*16/15]-16]&$ff
+    :31 dta [#*16/15]-16
 veltablehi
     :31 dta [#<15]*$ff
 bank_dir_still_midair
