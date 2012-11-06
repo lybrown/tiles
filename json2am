@@ -110,7 +110,7 @@ sub props {
     my $layer = $map->{layers}[1] or die;
     my $data = $layer->{data} or die;
     my $count = scalar @$data;
-    my $offset = 32;
+    my $offset = 33;
     warn "INFO: Visual: $offset Props: $count\n";
     for my $i (0 .. $#$mapcells) {
 	my $prop = $data->[$i];

@@ -12,6 +12,7 @@ framecount org *+1
 pmbank org *+1
 scrpos org *+2
 xpos org *+2
+xposlast org *+2
 jframe org *+1
 veldir org *+1
 vel org *+1
@@ -162,6 +163,7 @@ disable_antic
     mva #hx+24 HPOSP3
     sta HPOSM0
 
+    mva #$30 xpos
     mva #japex jframe
     mva #28 ground
     mva #$ff veldir
@@ -181,7 +183,7 @@ initdraw
     jsr drawedgetiles
     inc coarse
     lda coarse
-    cmp #49
+    cmp #64
     bne initdraw
     mva <scr coarse
 
@@ -332,41 +334,19 @@ xmove
     sta veldir
     and #$1f
     ldy #0
-    cmp #$f
+    cmp #velstill
     scc:ldy #48
     sty edgeoff
     sta vel
     tax
+    mwa xpos xposlast
     lda veltablelo,x
     add:sta xpos
-    sta coarse
     lda veltablehi,x
     adc:sta xpos+1
-
-    lsr @
-    ror coarse
-    lsr @
-    ror coarse
-    lsr @
-    ror coarse
-    lsr @
-    ror coarse
-    add >scr
-    sta coarse+1
-
-    lda xpos
-    and #$c
-    :2 lsr @
-    tax
-    mva hscroltable,x HSCROL
-donexmove
+xmovedone
 
 adjust
-    ; skip if jframe >= japex
-    ldy jframe
-    cpy #japex
-    bcs adjustdone
-
     ; mapy = ground + jumpmap[jframe]
     ldx jframe
     lda jumpmap,x
@@ -391,9 +371,23 @@ adjust
     ;ora #7
     ;sta (feetpos),y
 
+    cmp #16
+    bcc adjusty
+adjustx
+    ldx #[velstill-1]
+    ldy veldir
+    spl:ldx #[[velstill+1]|$80]
+    stx veldir
+    mwx xposlast xpos
+
+adjusty
     ; if tile.ground: ground = mapy; jframe = japex
-    and #$f8
+    and #8
     beq setmidair
+    ; skip if jframe >= japex
+    ldy jframe
+    cpy #japex
+    bcs adjustdone
     mva #japex jframe
     mva mapy ground
     mva #0 midair
@@ -449,13 +443,32 @@ moving
     and #7
     tax
     mva pmbasetable,x PMBASE
-    jmp donepose
+    jmp posedone
 notrunning
     sta PMBASE
     mva #0 runframe
-donepose
+posedone
 
-updlist
+update_display
+    mva xpos coarse
+    lda xpos+1
+    lsr @
+    ror coarse
+    lsr @
+    ror coarse
+    lsr @
+    ror coarse
+    lsr @
+    ror coarse
+    add >scr
+    sta coarse+1
+
+    lda xpos
+    and #$c
+    :2 lsr @
+    tax
+    mva hscroltable,x HSCROL
+
     ldx jframe
     mva jumpvscrol,x VSCROL
     lda coarse
