@@ -24,6 +24,7 @@ feetpos org *+2
 ground org *+1
 lastjump org *+1
 midair org *+1
+foottile org *+1
 
 inflate_zp equ $f0
 
@@ -137,19 +138,13 @@ disable_antic
     sta NMIEN
     sta DMACTL
     sta COLBK
-    sta edgeoff
-    sta xpos
-    sta xpos+1
-    sta lastjump
-    sta midair
     sta COLPF3
     sta SIZEP0
     sta SIZEP1
     sta SIZEP2
     sta SIZEP3
-    mva #$ff SIZEM
     mva #$11 PRIOR
-    mva #3 GRACTL
+    mva #$ff SIZEM
     mva #$3f COLPM0
     sta COLPM1
     sta COLPM2
@@ -162,23 +157,32 @@ disable_antic
     sta HPOSM1
     mva #hx+24 HPOSP3
     sta HPOSM0
-
-    mva #$30 xpos
-    mva #japex jframe
-    mva #28 ground
-    mva #$ff veldir
-    mva #$50 blink
-    mva #$82 PORTB
     lda #$70
     ldy <song
     ldx >song
     jsr player+$300 ; init
+
+die
+    lda #0
+    sta edgeoff
+    sta lastjump
+    sta midair
+    sta DMACTL
+    sta GRACTL
+
+    mva #$ff veldir
+    mva #$82 PORTB
+    mva #japex jframe
+    mva #28 ground
+    mva #$50 blink
+    mwa #$0030 xpos
+    mwa #scr coarse
+    mva >chset CHBASE
+
     lda #0
     tax
     jsr player+$300 ; init
 
-    mwa #scr coarse
-    mva >chset CHBASE
 initdraw
     jsr drawedgetiles
     inc coarse
@@ -202,7 +206,6 @@ showframe
     cmp:rne VCOUNT
     sta WSYNC
     ; line 7
-    ;mva pmbank PORTB
     mva <dlist DLISTL
     mva >dlist DLISTH
     ; Pal Blending per FJC, popmilo, XL-Paint Max, et al.
@@ -281,6 +284,7 @@ image
     eif
     bne image
 blank
+
 ymove
     lda PORTA
     and #1
@@ -352,6 +356,9 @@ adjust
     lda jumpmap,x
     add ground
     sta mapy
+    cmp #33
+    scc:jmp die
+
 
     ; tile = map[xpos_w>>6 + herox + mapy<<8]
     mva xpos+1 feetpos
@@ -367,11 +374,13 @@ adjust
     ldy #5 ; herox offset
     lda (feetpos),y
 
+    sta foottile
     ;and #$f8
     ;ora #7
     ;sta (feetpos),y
 
     cmp #16
+    ; if tile.blockx: vel = dir ? 1 : -1; xpos = xposlast
     bcc adjusty
 adjustx
     ldx #[velstill-1]
@@ -381,7 +390,7 @@ adjustx
     mwx xposlast xpos
 
 adjusty
-    ; if tile.ground: ground = mapy; jframe = japex
+    ; if tile.blocky: ground = mapy; jframe = japex
     and #8
     beq setmidair
     ; skip if jframe >= japex
@@ -396,28 +405,34 @@ setmidair
     mva #1 midair
 adjustdone
 
-music
+sfx
     mva #$82 PORTB
+    ldx #0
+    lda foottile
+    cmp #7
+    sne:ldx #$b
+    cmp #6
+    sne:ldx #$c
+    cpx #0
+    beq sfxdone
+    and #$f8
+    ;ora #3
+    ldy #5
+    sta (feetpos),y
+    txa
+    tay
+    lda #$23
+    ldx #$ff
+    jsr player+$300 ; play sfx
+sfxdone
+
+music
     jsr player+$303 ; play music
     inc:lda framecount
     and #$c
     ora >chset
     sta CHBASE
-
-testsfx equ 0
-    ift testsfx
-    lda framecount
-    and #$1f
-    bne nosfx
-    lda framecount
-    and #$3f
-    seq:ldy #$b
-    sne:ldy #$c
-    lda #$23
-    ldx #1
-    jsr player+$300 ; play sfx
-    eif
-nosfx
+musicdone
 
 pose
     ; midair
