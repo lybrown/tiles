@@ -96,13 +96,30 @@ sub dump_chset {
 }
 
 sub dump_map {
-    my ($map) = @_;
-    my @copy = map $_-1, @$map;
+    my ($mapcells) = @_;
+    my @copy = map $_-1, @$mapcells;
     print "  org buffer\n";
     print "  ; Dest Start Address, Dest End Address, Bank\n";
     print "  dta a(map),a(map+\$2000),0\n";
     print "  dta ", (join ",", splice @copy, 0, 32), "\n" while @copy;
     print "  ini relocate\n";
+}
+
+sub props {
+    my ($map, $mapcells) = @_;
+    my $layer = $map->{layers}[1] or die;
+    my $data = $layer->{data} or die;
+    my $count = scalar @$data;
+    my $offset = 32;
+    warn "INFO: Visual: $offset Props: $count\n";
+    for my $i (0 .. $#$mapcells) {
+	my $prop = $data->[$i];
+	defined $prop or die "ERROR: Prop layer is smaller than visual: $i.\n";
+	next unless $prop;
+	$prop -= $offset;
+	$prop <<= 3;
+	$mapcells->[$i] |= $prop;
+    }
 }
 
 sub main {
@@ -114,7 +131,7 @@ sub main {
     $counts{$_}++ for @$data;
     my @tiles = sort { $counts{$b} <=> $counts{$a} } keys %counts;
     my %raw2tile = map { $tiles[$_] => $_+1 } 0 .. $#tiles;
-    my @map = map { $raw2tile{$_} || 0 } @$data;
+    my @mapcells = map { $raw2tile{$_} || 0 } @$data;
     print "  org buffer\n";
     print "  ; Dest Start Address, Dest End Address, Bank\n";
     print "  dta a(chset),a(chset+\$1000),0\n";
@@ -122,7 +139,8 @@ sub main {
         dump_chset($map, $palimage, [map $_+$set*8, @tiles]);
     }
     print "  ini relocate\n";
-    dump_map(\@map);
+    props($map, \@mapcells);
+    dump_map(\@mapcells);
 }
 
 main();

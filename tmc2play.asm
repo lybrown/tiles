@@ -2,7 +2,8 @@
 ;  TMC 2.00 Player
 ;------------------
 
-normal equ 1 ; change to 0 for short version
+normal equ 0 ; change to 0 for short version
+stereo equ 0
 
        org player
 
@@ -285,7 +286,7 @@ shiftfilter dta d'        '
 
 przeci dta 4,5,6,7     ; which channel is the opposite (used only in stereo)
        dta 0,1,2,3
-       
+
        eif ; !!!
 
 audtb1 dta 4,2,0,0     ; which byte in audctl has to be set to make sound "2 channel synth"
@@ -616,8 +617,10 @@ p7     ldy bajt
        sta frq,x
        lda #0
        sta vol1ch-1,x
+       ift normal ; !!!
        ldy przeci,x
        sta vol2ch-1,y
+       eif
        dex
        dex
        bpl p5
@@ -830,7 +833,9 @@ pokey1 lda pokeys ; data for pokey 0
 
        rts
 
-pokey  lda audctl+4
+pokey
+       ift stereo ; !!!
+       lda audctl+4
        ora audctl+5
        ora audctl+6
        ora audctl+7
@@ -855,6 +860,7 @@ pokey  lda audctl+4
        lda vol1ch+7
        ora znksz+7
        sta $d217
+       eif
 
        lda audctl+0
        ora audctl+1

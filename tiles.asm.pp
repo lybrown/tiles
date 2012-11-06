@@ -1,4 +1,4 @@
-    opt l-h+f-
+    opt l+h+f-
     icl 'hardware.asm'
     org $80
 coarse org *+2
@@ -13,7 +13,7 @@ framecount org *+1
 pmbank org *+1
 scrpos org *+2
 xpos org *+2
-ypos org *+2
+jumpframe org *+1
 jcount org *+1
 veldir org *+1
 vel org *+1
@@ -21,6 +21,10 @@ blink org *+1
 runframe org *+1
 dir org *+1
 rightleft org *+1
+feetpos org *+2
+ground org *+1
+lastjump org *+1
+dir_still_midair org *+1
 
 inflate_zp equ $f0
 
@@ -33,10 +37,10 @@ scr equ $9000
 map equ $b000
 chset equ $e000
 buffer equ $8000
-mapheight equ 14
+mapheight equ 16
 mapwidth equ 256
 linewidth equ $40
-hx equ 90
+hx equ 100
 hy equ 100
 bank0 equ $82
 bank1 equ $86
@@ -133,6 +137,7 @@ disable_antic
     sta xpos
     sta xpos+1
     sta jcount
+    sta lastjump
     sta COLPF3
     sta SIZEP0
     sta SIZEP1
@@ -154,6 +159,7 @@ disable_antic
     mva #hx+24 HPOSP3
     sta HPOSM0
 
+    mva #28 ground
     mva #$ff veldir
     mva #$50 blink
     mva #$82 PORTB
@@ -190,7 +196,7 @@ showframe
     cmp:rne VCOUNT
     sta WSYNC
     ; line 7
-    mva pmbank PORTB
+    ;mva pmbank PORTB
     mva <dlist DLISTL
     mva >dlist DLISTH
     ; Pal Blending per FJC, popmilo, XL-Paint Max, et al.
@@ -265,7 +271,7 @@ image
     bne image
 blank
     mva #$82 PORTB
-    jsr player+$303 ; play music
+    ;jsr player+$303 ; play music
     inc:lda framecount
     and #$c
     ora >chset
@@ -287,19 +293,21 @@ testsfx equ 0
 nosfx
 
 ymove
-    ldx jcount
-    bne midjump
     lda PORTA
     and #1
-    sne:mva #jsteps jcount
+    cmp lastjump
+    sta lastjump
     ldx jcount
-    beq donejump
+    bne midjump
+    scs:mva #jsteps jcount
+    ldx jcount
+    beq updatejump
 midjump
     dec jcount
-donejump
-    mva jumplo,x ypos
-    mva jumphi,x ypos+1
+updatejump
+    stx jumpframe
     mva jumpvscrol,x VSCROL
+donejump
 
     ; PORTA bits: right,left,down,up
     ; vi+=1 if right, clamp max
@@ -311,6 +319,7 @@ donejump
     ; p+=v[vi]
     ; runframe=0 if v==0
     ; runframe+=1 if v!=0, modulus
+    ; midair = jcount<8
     ; bank=1 if dir
     ; bank=2 if !dir
     ; bank=3 if v==0 or midair
@@ -358,7 +367,65 @@ xmove
     :2 lsr @
     tax
     mva hscroltable,x HSCROL
+donexmove
 
+adjust
+    ; mapy = ground + jumpmap[jumpframe]
+    ; tile = map[xpos>>6+mapy]
+    ; if tile.ground:
+    ;   if jumpframe < apex:
+    ;     ground = mapy
+    ;     jcount = jumpframe = 0
+    ; else if jumpframe == 0:
+    ;   ground += 3
+    ;   jcount = jumpframe = apex
+
+    ldx jumpframe
+    lda jumpmap,x
+    add ground
+    sta mapy
+
+    mva xpos+1 feetpos
+    lda xpos
+    asl @
+    rol feetpos
+    asl @
+    rol feetpos
+    lda mapy
+    and #$1f
+    adc >map
+    sta feetpos+1
+    ldy #5 ; x offset
+    lda (feetpos),y
+
+    ;and #$f8
+    ;ora #0
+    ;sta (feetpos),y
+
+    ldy #japex
+    and #$f8
+    beq midair
+    mva #0 dir_still_midair
+    cpy jumpframe
+    bcc adjustdone ; branch if jumpframe > apex
+    ldx jcount
+    lda jumpmap,x
+    add:sta ground
+    sta ground
+    mvy #0 jcount
+    sty jumpframe
+    beq adjustdone
+midair
+    mva #1 dir_still_midair
+    lda jumpframe
+    bne adjustdone
+    lda #jmapheight
+    ;add:sta ground
+    ;sty jcount
+    ;sty jumpframe
+adjustdone
+
+pose
     lda #0
     ; still
     ldy vel
@@ -370,13 +437,15 @@ xmove
     ora #2
 moving
     ; midair
-    ldy jcount
-    seq:ora #1
+    ldy jumpframe
+    cpy #7 ; end midair pose before reaching ground
+    scc:ora #1
+    ;lda dir_still_midair
     ; dir
     ldy veldir
     spl:ora #4
     tax
-    mva bank_dir_still_midair,x pmbank
+    mva bank_dir_still_midair,x PORTB
     lda pmbase_dir_still_midair,x
     bpl notrunning
     lda:inc runframe
@@ -384,18 +453,22 @@ moving
     and #7
     tax
     mva pmbasetable,x PMBASE
-    jmp donexmove
+    jmp donepose
 notrunning
     sta PMBASE
     mva #0 runframe
-donexmove
+donepose
 
 updlist
+    ldx jumpframe
+    ;ldx jcount
     lda coarse
-    add ypos
+    add jumplo,x
     sta scrpos
     lda coarse+1
-    adc ypos+1
+    adc jumphi,x
+    ldx ground
+    add ground2scr,x
     sta scrpos+1
 
     ldx #0
@@ -438,11 +511,10 @@ drawedgetiles
     lda drawpos+2
     and #$f
     lsr @
-    sta mappos+1
-    ror mappos
-    lsr mappos+1
     ror mappos
     lsr @
+    ror mappos
+    sta mappos+1
     add >map
     sta mappos+1
 
@@ -450,13 +522,14 @@ drawedgetiles
 edge
     ldy #0
     lda (mappos),y
+    and #7
     tax
     lda tilex16,x
     ldx mapfrac
     add tilefrac,x
     tax
 drawpos
-    stx:inx scr
+    stx:inx $ffff
     lda drawpos+1
     add #linewidth
     sta drawpos+1
@@ -483,20 +556,32 @@ tilefrac
     :4 dta #*4
 coarsehitable
     :256 dta >[scr+[[#*linewidth]&$fff]]
-    :256 dta >[scr+[[#*linewidth]&$fff]]
 
->>> my $steps = 39;
->>> print "jsteps equ ",$steps+0,"\n";
+>>> my $jsteps = 39;
 >>> my $jheight = 3.5;
->>> my $acc = $jheight/(($steps-1)/2)**2;
->>> my @traj = map { 6-$jheight+$acc*$_*$_ } -$steps/2 .. $steps/2;
->>> unshift @traj, ($traj[-1]) x 3;
+>>> my $jextra = 32;
+>>> my $jhalf = int($jsteps / 2);
+>>> my $japex = $jextra + $jhalf;
+>>> my $jsoff = 8;
+>>> print "jsteps equ ",$jextra + $jsteps - 2,"\n";
+>>> print "japex equ ",$japex,"\n";
+>>> print "jmapheight equ ",$jheight*2,"\n";
+>>> print "jsoff equ $jsoff\n";
+>>> my $acc = $jheight/(($jsteps-1)/2)**2;
+>>> my @traj = map { $jsoff-$jheight+$acc*$_*$_ } -$jhalf .. $jhalf-1;
+>>> #unshift @traj, ($traj[-1]) x 3;
+>>> unshift @traj, 8+$_/2 for 1 .. $jextra;
 jumplo
 >>> printf "    dta %d\n", (int($_*4)&3)*0x40 for @traj;
 jumphi
 >>> printf "    dta %d\n", int($_) for @traj;
+jumpmap
+>>> #printf "    dta %d\n", 2*int($_-$jsoff-0.99) for @traj;
+>>> printf "    dta %d\n", 2*int($_-$jsoff-1) for @traj;
 jumpvscrol
 >>> printf "    dta %d\n", int($_*32)&6 for @traj;
+ground2scr
+    :256 dta #/2+2
 
 veldirtable
 >>> my $i = 0;
@@ -537,8 +622,6 @@ pmbasetable
     :8 dta $40+8*#
 hscroltable
     :4 dta 3,2,1,0
-hadjusttable
-    :4 dta 0,1,1,1
 
 
     run main

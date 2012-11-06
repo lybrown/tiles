@@ -25,7 +25,7 @@ atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 	perl $< > $@
 	
 %.obx: %.asm
-	xasm /l /d:pwm=$(if $(findstring audf,$(audext)),1,0) $<
+	xasm /l $<
 
 %.dfl: %.bin gzip2deflate
 	#7z a -tgzip -mx=9 -so dummy $< | ./gzip2deflate >$@
