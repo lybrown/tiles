@@ -20,7 +20,7 @@ blink org *+1
 runframe org *+1
 dir org *+1
 rightleft org *+1
-feetpos org *+2
+footpos org *+2
 ground org *+1
 lastjump org *+1
 midair org *+1
@@ -47,6 +47,7 @@ bank0 equ $82
 bank1 equ $86
 bank2 equ $8A
 bank3 equ $8E
+bankmain equ $FE
 velstill equ 15
 
     org main
@@ -75,16 +76,19 @@ st  sta $ffff
     cmp buffer+3
     bne ld
 setbank0
-    mva #$83 PORTB
+    mva #bank0|1 PORTB
     rts
 setbank1
-    mva #$87 PORTB
+    mva #bank1|1 PORTB
     rts
 setbank2
-    mva #$8b PORTB
+    mva #bank2|1 PORTB
     rts
 setbank3
-    mva #$8f PORTB
+    mva #bank3|1 PORTB
+    rts
+setbankmain
+    mva #bankmain|1 PORTB
     rts
 clearbank
     mva #$40 clearst+2
@@ -103,7 +107,7 @@ clearst
     bne clearst
     rts
 banks
-    :64 dta $82+[[#%4]<<2]
+    :64 dta bank0+[[#%4]<<2]
     ;:64 dta [[#*4]&$e0] | [[#*2]&$f] | $01
 ;inflate
 ;    icl 'inflate.asm'
@@ -125,7 +129,7 @@ disable_antic
     dta $41,a(dlist)
     icl 'assets.asm'
     icl 'sprites.asm'
-    ini setbank0
+    ini setbankmain
     org song
     ins 'ruffw1.tm2',6
     org player
@@ -171,9 +175,9 @@ die
     sta GRACTL
 
     mva #$ff veldir
-    mva #$82 PORTB
+    mva #bankmain PORTB
     mva #japex jframe
-    mva #28 ground
+    mva #26 ground
     mva #$50 blink
     mwa #$0030 xpos
     mwa #scr coarse
@@ -356,32 +360,35 @@ adjust
     lda jumpmap,x
     add ground
     sta mapy
-    cmp #33
+
+checkpit
+    bmi nopit
+    cmp #30
     scc:jmp die
+nopit
 
-
-    ; tile = map[xpos_w>>6 + herox + mapy<<8]
-    mva xpos+1 feetpos
+    ; foottile = map[xpos_w>>6 + herox + mapy<<8]
+    mva xpos+1 footpos
     lda xpos
     asl @
-    rol feetpos
+    rol footpos
     asl @
-    rol feetpos
+    rol footpos
     lda mapy
     and #$1f
     adc >map
-    sta feetpos+1
+    sta footpos+1
     ldy #5 ; herox offset
-    lda (feetpos),y
-
+    lda (footpos),y
     sta foottile
+
     ;and #$f8
     ;ora #7
-    ;sta (feetpos),y
+    ;sta (footpos),y
 
-    cmp #16
+    and #$80
     ; if tile.blockx: vel = dir ? 1 : -1; xpos = xposlast
-    bcc adjusty
+    beq adjusty
 adjustx
     ldx #[velstill-1]
     ldy veldir
@@ -391,7 +398,8 @@ adjustx
 
 adjusty
     ; if tile.blocky: ground = mapy; jframe = japex
-    and #8
+    lda foottile
+    and #$40
     beq setmidair
     ; skip if jframe >= japex
     ldy jframe
@@ -405,26 +413,26 @@ setmidair
     mva #1 midair
 adjustdone
 
-sfx
-    mva #$82 PORTB
-    ldx #0
+coin
+    mva #bankmain PORTB
+    ldy #0
     lda foottile
+    and #7
     cmp #7
-    sne:ldx #$b
+    sne:ldy #$b
     cmp #6
-    sne:ldx #$c
-    cpx #0
-    beq sfxdone
-    and #$f8
-    ;ora #3
-    ldy #5
-    sta (feetpos),y
-    txa
-    tay
+    sne:ldy #$c
+    cpy #0
+    beq coindone
     lda #$23
     ldx #$ff
     jsr player+$300 ; play sfx
-sfxdone
+    lda foottile
+    and #$f8
+    ;ora #3
+    ldy #5
+    sta (footpos),y
+coindone
 
 music
     jsr player+$303 ; play music
@@ -605,7 +613,7 @@ jumpmap
 jumpvscrol
 >>> printf "    dta %d\n", int(($jsoff + $_)*32)&6 for @traj;
 ground2scr
-    :256 dta #/2+2
+    :256 dta #/2+3
 
 veldirtable
 >>> my $i = 0;

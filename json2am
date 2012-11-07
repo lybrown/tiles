@@ -109,16 +109,19 @@ sub props {
     my ($map, $mapcells) = @_;
     my $layer = $map->{layers}[1] or die;
     my $data = $layer->{data} or die;
+    my $width = $layer->{width};
+    #$width = 0;
     my $count = scalar @$data;
     my $offset = 33;
     warn "INFO: Visual: $offset Props: $count\n";
-    for my $i (0 .. $#$mapcells) {
+    for my $i ($width .. $#$mapcells) {
 	my $prop = $data->[$i];
 	defined $prop or die "ERROR: Prop layer is smaller than visual: $i.\n";
 	next unless $prop;
 	$prop -= $offset;
-	$prop <<= 3;
-	$mapcells->[$i] |= $prop;
+	$prop <<= 6;
+        #warn "PROP: $prop CELL: ", $mapcells->[$i-$width], "\n";
+	$mapcells->[$i-$width] |= $prop;
     }
 }
 
