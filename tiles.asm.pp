@@ -5,11 +5,11 @@ coarse org *+2
 mappos org *+2
 mapfrac org *+1
 tilepos org *+2
+tilechar org *+1
 mapy org *+1
 edgeoff org *+1
 tmp org *+1
 framecount org *+1
-pmbank org *+1
 scrpos org *+2
 xpos org *+2
 xposlast org *+2
@@ -18,29 +18,32 @@ veldir org *+1
 vel org *+1
 blink org *+1
 runframe org *+1
-dir org *+1
 rightleft org *+1
 footpos org *+2
+foottile org *+1
+checkpos org *+2
+checktile org *+1
 ground org *+1
 lastjump org *+1
 midair org *+1
-foottile org *+1
+cointype org *+1
 
 inflate_zp equ $f0
 
-ntsc equ 0
 main equ $2000
-dlist equ $3000
-pm equ $3400
+dlist equ $3900
 song equ $4000
 player equ $6000
-scr equ $9000
+scr equ $a000
 map equ $b000
 chset equ $e000
 buffer equ $8000
+
+ntsc equ 0
 mapheight equ 16
-mapwidth equ 256
+mapwidth equ 512
 linewidth equ $40
+herox equ 5
 hx equ 100
 hy equ 100
 bank0 equ $82
@@ -122,13 +125,15 @@ disable_antic
 
     org dlist
     ift ntsc
-    :25 dta $54+[#==0]*$20,a(scr+#<<6)
+    :25 dta $54+[#!=24]*$20,a(scr+#<<6)
     els
     :31 dta $54+[#==0]*$20,a(scr+#<<6)
     eif
     dta $41,a(dlist)
     icl 'assets.asm'
     icl 'sprites.asm'
+    ini setbank0
+    ini clearbank
     ini setbankmain
     org song
     ins 'ruffw1.tm2',6
@@ -191,7 +196,7 @@ initdraw
     jsr drawedgetiles
     inc coarse
     lda coarse
-    cmp #64
+    cmp #linewidth
     bne initdraw
     mva <scr coarse
 
@@ -214,63 +219,27 @@ showframe
     mva >dlist DLISTH
     ; Pal Blending per FJC, popmilo, XL-Paint Max, et al.
     ; http://www.atariage.com/forums/topic/197450-mode-15-pal-blending/
-    ldx #$72
-    ldy #$d2
-    lda #$32
-    stx COLPF1
-    sta COLPF0
-    sta WSYNC
-    ; line 8 - bad line
-    sty COLPF2
-    sta WSYNC
-    ; line 9
-    mva #$6 COLPF0
-    mva #$8 COLPF1
-    mva #$c COLPF2
-    ldx #$72
-    ldy #$d2
-    lda #$32
     :4 nop
-    stx COLPF1
-    sta COLPF0
-    sta WSYNC
-    sty COLPF2
-    sta WSYNC
-    mva #$6 COLPF0
-    mva #$8 COLPF1
-    mva #$c COLPF2
     ldx #$72
     ldy #$d2
     lda #$32
-    :4 nop
     stx COLPF1
     sta COLPF0
-    sta WSYNC
     sty COLPF2
     sta WSYNC
-    mva #$6 COLPF0
-    mva #$8 COLPF1
-    mva #$c COLPF2
-    ldx #$72
-    ldy #$d2
-    lda #$32
-    :4 nop
-    stx COLPF1
-    sta COLPF0
-    sta WSYNC
-    sty COLPF2
+    lda #7
     sta WSYNC
     ; Full-screen vertical fine scrolling per Rybags:
     ; http://www.atariage.com/forums/topic/154718-new-years-disc-2010/page__st__50#entry1911485
-    mva #$7 VSCROL
+    sta VSCROL
     mva #$6 COLPF0
     mva #$8 COLPF1
     mva #$c COLPF2
 image
+    :4 nop
     ldx #$72
     ldy #$d2
     lda #$32
-    :4 nop
     stx COLPF1
     sta COLPF0
     sta WSYNC
@@ -282,12 +251,16 @@ image
     mva #$c COLPF2
     lda VCOUNT
     ift ntsc
-    cmp #90
+    cmp #91
     els
     cmp #124
     eif
     bne image
 blank
+
+    ift ntsc
+    mva #bank0 PORTB
+    eif
 
 ymove
     lda PORTA
@@ -378,10 +351,12 @@ nopit
     and #$1f
     adc >map
     sta footpos+1
-    ldy #5 ; herox offset
+    ldy #herox ; herox offset
     lda (footpos),y
     sta foottile
 
+
+    ; debug
     ;and #$f8
     ;ora #7
     ;sta (footpos),y
@@ -414,24 +389,23 @@ setmidair
 adjustdone
 
 coin
+    ift ntsc
+    mva #0 GRACTL
+    eif
     mva #bankmain PORTB
     ldy #0
     lda foottile
     and #7
-    cmp #7
+    cmp #0
     sne:ldy #$b
-    cmp #6
+    cmp #5
     sne:ldy #$c
+    sty cointype
     cpy #0
     beq coindone
     lda #$23
     ldx #$ff
     jsr player+$300 ; play sfx
-    lda foottile
-    and #$f8
-    ;ora #3
-    ldy #5
-    sta (footpos),y
 coindone
 
 music
@@ -473,6 +447,7 @@ notrunning
 posedone
 
 update_display
+    ; coarse = scr + xpos>>4
     mva xpos coarse
     lda xpos+1
     lsr @
@@ -486,12 +461,15 @@ update_display
     add >scr
     sta coarse+1
 
+    ; HSCROL = table[(xpos & $C) >> 2]
     lda xpos
     and #$c
     :2 lsr @
     tax
     mva hscroltable,x HSCROL
 
+    ; VSCROL = table[jframe]
+    ; scrpos = coarse + table[jframe] + table[ground]
     ldx jframe
     mva jumpvscrol,x VSCROL
     lda coarse
@@ -503,6 +481,7 @@ update_display
     add ground2scr,x
     sta scrpos+1
 
+    ; update low bytes of dlist
     ldx #0
     lda scrpos
     :8 sta dlist+1+12*#
@@ -516,6 +495,8 @@ update_display
     scc:ldx #1
     :7 sta dlist+10+12*#
 
+    ; update high bytes of dlist
+    ; dlist{hi}[i] = table[(scrpos{hi} & $F) << 2 | frac]
     lda scrpos+1
     and #$f
     :2 asl @
@@ -524,6 +505,87 @@ update_display
     ora tmp
     tax
     :31 dta {lda a:,x},a(coarsehitable+#),{sta a:},a(dlist+2+3*#)
+
+replacetile
+    lda cointype
+    sne:jmp replacedone
+
+
+    ; checkpos = footpos - ((framecount&1) ? 0 : $200)
+    lda framecount
+    ror @
+    mva footpos checkpos
+    lda footpos+1
+    ;scc:sub #1 ; -2 because carry clear
+    sta checkpos+1
+
+    ; scrpos = (scrpos-$500) & $FFFC
+    ldx jframe
+    lda scrpos
+    and #$FC
+    sub jumpscrlo,x
+    sta scrpos
+    lda scrpos+1
+    sbc #-5
+    and #$F
+    ;lda framecount
+    ;ror @
+    add >scr
+    sta scrpos+1
+
+    ; map[checkpos] = map[checkpos]&$F8 | map[checkpos]&(7<<3)>>3
+    ldy #herox
+    lda (checkpos),y
+    sta checktile
+    and #7<<3
+    tax
+    :3 lsr @
+    sta tmp
+    lda checktile
+    and #$F8
+    ora tmp
+    sta (checkpos),y
+
+    ;lda #1
+    ;ldy #$ff
+    ;sta:rne (scrpos),y-
+
+    ; tilechar = map[checkpos]&(7<<3)<<2 & $E0
+    txa
+    :1 asl @
+    sta tilechar
+
+    ; blit to scr
+
+    ldy #[herox*4]
+    clc
+    :3 dta {sta (),y},scrpos,{adc #},4,{iny}
+    sta (scrpos),y
+    lda #linewidth
+    add:sta scrpos
+    scc:inc scrpos+1
+    ldy #[herox*4]
+    lda tilechar
+    add #1
+    :3 dta {sta (),y},scrpos,{adc #},4,{iny}
+    sta (scrpos),y
+    lda #linewidth
+    add:sta scrpos
+    scc:inc scrpos+1
+    ldy #[herox*4]
+    lda tilechar
+    add #2
+    :3 dta {sta (),y},scrpos,{adc #},4,{iny}
+    sta (scrpos),y
+    lda #linewidth
+    add:sta scrpos
+    scc:inc scrpos+1
+    ldy #[herox*4]
+    lda tilechar
+    add #3
+    :3 dta {sta (),y},scrpos,{adc #},4,{iny}
+    sta (scrpos),y
+replacedone
 
     jsr drawedgetiles
 
@@ -563,9 +625,8 @@ edge
     tax
 drawpos
     stx:inx $ffff
-    lda drawpos+1
-    add #linewidth
-    sta drawpos+1
+    lda #linewidth
+    add:sta drawpos+1
     bcc skiphi
     lda drawpos+2
     adc #0
@@ -630,7 +691,8 @@ veldirtable
 >>>   $veln -= 1 if $left and $veln > 0;
 >>>   $veln -= 1 if $stop and $veln > 15;
 >>>   $veln += 1 if $stop and $veln < 15;
->>>   printf "    ; i=%x dirn=$dirn stop=$stop right=$right left=$left vel=$vel veln=$veln\n", $i++;
+>>>   printf "    ; i=%x dirn=$dirn stop=$stop right=$right left=$left", $i++;
+>>>   printf " vel=$vel veln=$veln\n";
 >>>   printf "    dta %d\n", $dirn<<7|$veln;
 >>> }}}}
 veltablelo
@@ -641,7 +703,8 @@ bank_dir_still_midair
 >>> for my $dir (0, 1) {
 >>> for my $still (0, 1) {
 >>> for my $midair (0, 1) {
->>>   printf "    dta bank%s\n", $midair ? $dir ? 1 : 2 : $still ? 3 : $dir ? 1 : 2;
+>>>   printf "    dta bank%s\n",
+>>>     $midair ? $dir ? 1 : 2 : $still ? 3 : $dir ? 1 : 2;
 >>> }}}
 pmbase_dir_still_midair
 >>> for my $dir (0, 1) {

@@ -97,7 +97,7 @@ sub dump_chset {
 
 sub dump_map {
     my ($mapcells) = @_;
-    my @copy = map $_-1, @$mapcells;
+    my @copy = @$mapcells;
     print "  org buffer\n";
     print "  ; Dest Start Address, Dest End Address, Bank\n";
     print "  dta a(map),a(map+\$2000),0\n";
@@ -105,36 +105,48 @@ sub dump_map {
     print "  ini relocate\n";
 }
 
-sub props {
-    my ($map, $mapcells) = @_;
-    my $layer = $map->{layers}[1] or die;
+sub getlayer {
+    my ($map, $name) = @_;
+    for my $layer (@{$map->{layers}}) {
+        return $layer if $layer->{name} eq $name;
+    }
+    die "ERROR: Cannot find layer $name\n";
+}
+
+sub overlay {
+    my ($map, $mapcells, $name, $tileoffset, $mapoffset, $shift) = @_;
+    my $layer = getlayer($map, $name);
     my $data = $layer->{data} or die;
-    my $width = $layer->{width};
-    #$width = 0;
     my $count = scalar @$data;
-    my $offset = 33;
-    warn "INFO: Visual: $offset Props: $count\n";
-    for my $i ($width .. $#$mapcells) {
-	my $prop = $data->[$i];
-	defined $prop or die "ERROR: Prop layer is smaller than visual: $i.\n";
-	next unless $prop;
-	$prop -= $offset;
-	$prop <<= 6;
-        #warn "PROP: $prop CELL: ", $mapcells->[$i-$width], "\n";
-	$mapcells->[$i-$width] |= $prop;
+    warn "INFO: layer: '$name' tileoffset: $tileoffset mapoffset: $mapoffset\n";
+    for my $i ($mapoffset .. $#$mapcells) {
+	my $value = $data->[$i];
+	defined $value or die "ERROR: $name layer is smaller than visual: $i.\n";
+	next unless $value;
+        #warn "PROP: $value CELL: ", $mapcells->[$i-$mapoffset], "\n";
+	$value -= $tileoffset;
+	$value <<= $shift;
+	$mapcells->[$i-$mapoffset] |= $value;
     }
 }
 
 sub main {
     my $map = parsejson($ARGV[0]);
     my $palimage = readimage($ARGV[1]);
-    my $layer = $map->{layers}[0];
+    my $layer = getlayer($map, "visual");
     my $data = $layer->{data} or die;
     my %counts;
     $counts{$_}++ for @$data;
-    my @tiles = sort { $counts{$b} <=> $counts{$a} } keys %counts;
-    my %raw2tile = map { $tiles[$_] => $_+1 } 0 .. $#tiles;
-    my @mapcells = map { $raw2tile{$_} || 0 } @$data;
+    #my @tiles = sort { $counts{$b} <=> $counts{$a} } keys %counts;
+    #my %raw2tile = map { $tiles[$_] => $_+1 } 0 .. $#tiles;
+    #my @mapcells = map { $raw2tile{$_} || 0 } @$data;
+    my @tiles = (1 .. 8);
+    #my @mapcells = map { $_ eq 6 ? 5 : 7 } @$data;
+    my @mapcells = map $_-1, @$data;
+    overlay($map, \@mapcells, "visual", 1, 0, 0);
+    overlay($map, \@mapcells, "props", 33, $layer->{width}, 6);
+    overlay($map, \@mapcells, "under coins", 1, 0, 3);
+    dump_map(\@mapcells);
     print "  org buffer\n";
     print "  ; Dest Start Address, Dest End Address, Bank\n";
     print "  dta a(chset),a(chset+\$1000),0\n";
@@ -142,8 +154,6 @@ sub main {
         dump_chset($map, $palimage, [map $_+$set*8, @tiles]);
     }
     print "  ini relocate\n";
-    props($map, \@mapcells);
-    dump_map(\@mapcells);
 }
 
 main();
