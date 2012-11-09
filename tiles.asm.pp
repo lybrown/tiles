@@ -26,6 +26,7 @@ checktile org *+1
 ground org *+1
 lastjump org *+1
 midair org *+1
+pmbank org *+1
 cointype org *+1
 
 inflate_zp equ $f0
@@ -185,7 +186,7 @@ die
     mva #26 ground
     mva #$50 blink
     mwa #$0030 xpos
-    mwa #scr coarse
+    mwa #0 coarse
     mva >chset CHBASE
 
     lda #0
@@ -198,7 +199,7 @@ initdraw
     lda coarse
     cmp #linewidth
     bne initdraw
-    mva <scr coarse
+    mva #0 coarse
 
     lda #124
     cmp:rne VCOUNT
@@ -211,6 +212,11 @@ showframe
     and #2
     sne:ldx #3
     stx GRACTL
+    inc:lda framecount
+    and #$c
+    ora >chset
+    sta CHBASE
+    mva pmbank PORTB
     lda #3
     cmp:rne VCOUNT
     sta WSYNC
@@ -253,9 +259,22 @@ image
     ift ntsc
     cmp #91
     els
-    cmp #124
+    cmp #122
     eif
     bne image
+    :4 nop
+    ldx #$72
+    ldy #$d2
+    lda #$32
+    stx COLPF1
+    sta COLPF0
+    sta WSYNC
+    sty COLPF2
+    lda #$6
+    sta WSYNC
+    sta COLPF0
+    mva #$8 COLPF1
+    mva #$c COLPF2
 blank
 
     ift ntsc
@@ -355,7 +374,6 @@ nopit
     lda (footpos),y
     sta foottile
 
-
     ; debug
     ;and #$f8
     ;ora #7
@@ -388,32 +406,12 @@ setmidair
     mva #1 midair
 adjustdone
 
-coin
+music
     ift ntsc
     mva #0 GRACTL
     eif
     mva #bankmain PORTB
-    ldy #0
-    lda foottile
-    and #7
-    cmp #0
-    sne:ldy #$b
-    cmp #5
-    sne:ldy #$c
-    sty cointype
-    cpy #0
-    beq coindone
-    lda #$23
-    ldx #$ff
-    jsr player+$300 ; play sfx
-coindone
-
-music
     jsr player+$303 ; play music
-    inc:lda framecount
-    and #$c
-    ora >chset
-    sta CHBASE
 musicdone
 
 pose
@@ -432,7 +430,7 @@ moving
     ldy veldir
     spl:ora #4
     tax
-    mva bank_dir_still_midair,x PORTB
+    mva bank_dir_still_midair,x pmbank
     lda pmbase_dir_still_midair,x
     bpl notrunning
     lda:inc runframe
@@ -447,7 +445,7 @@ notrunning
 posedone
 
 update_display
-    ; coarse = scr + xpos>>4
+    ; coarse = xpos>>4
     mva xpos coarse
     lda xpos+1
     lsr @
@@ -458,7 +456,6 @@ update_display
     ror coarse
     lsr @
     ror coarse
-    add >scr
     sta coarse+1
 
     ; HSCROL = table[(xpos & $C) >> 2]
@@ -482,83 +479,92 @@ update_display
     sta scrpos+1
 
     ; update low bytes of dlist
-    ldx #0
     lda scrpos
+    sta tmp
     :8 sta dlist+1+12*#
     add #linewidth
-    scc:ldx #3
     :8 sta dlist+4+12*#
     add #linewidth
-    scc:ldx #2
     :8 sta dlist+7+12*#
     add #linewidth
-    scc:ldx #1
     :7 sta dlist+10+12*#
 
     ; update high bytes of dlist
-    ; dlist{hi}[i] = table[(scrpos{hi} & $F) << 2 | frac]
+    ; dlist{hi}[i] = scrhitable[(scrpos & $FC0) >> 6]
     lda scrpos+1
     and #$f
-    :2 asl @
-    sta tmp
-    txa
-    ora tmp
+    asl tmp
+    rol @
+    asl tmp
+    rol @
     tax
-    :31 dta {lda a:,x},a(coarsehitable+#),{sta a:},a(dlist+2+3*#)
+    :31 dta {lda a:,x},a(scrhitable+#),{sta a:},a(dlist+2+3*#)
 
 replacetile
-    lda cointype
-    sne:jmp replacedone
-
+    ; skip if x blocked
+    lda foottile
+    and #$80
+    seq:jmp replacedone
 
     ; checkpos = footpos - ((framecount&1) ? 0 : $200)
     lda framecount
     ror @
+    php
     mva footpos checkpos
     lda footpos+1
-    ;scc:sub #1 ; -2 because carry clear
+    scs:sbc #1 ; -2 because carry clear
     sta checkpos+1
 
-    ; scrpos = (scrpos-$500) & $FFFC
+    ; scrpos = scr + (((scrpos-$500) - ((framecount&1) ? 0 : $100)) & $FFC)
     ldx jframe
     lda scrpos
-    and #$FC
     sub jumpscrlo,x
+    and #$FC
     sta scrpos
     lda scrpos+1
     sbc #-5
+    plp
+    sbc #0 ; -1 if carry clear
     and #$F
-    ;lda framecount
-    ;ror @
     add >scr
     sta scrpos+1
 
+    ; tilechar = map[checkpos]&(7<<3)<<1
     ; map[checkpos] = map[checkpos]&$F8 | map[checkpos]&(7<<3)>>3
     ldy #herox
     lda (checkpos),y
     sta checktile
     and #7<<3
-    tax
-    :3 lsr @
+    sne:jmp replacedone
+    asl @
+    sta tilechar
+    :4 lsr @
     sta tmp
     lda checktile
     and #$F8
     ora tmp
     sta (checkpos),y
 
-    ;lda #1
-    ;ldy #$ff
-    ;sta:rne (scrpos),y-
-
-    ; tilechar = map[checkpos]&(7<<3)<<2 & $E0
-    txa
-    :1 asl @
-    sta tilechar
+coin
+    ldy #0
+    lda checktile
+    and #7
+    cmp #0
+    sne:ldy #$b
+    cmp #5
+    sne:ldy #$c
+    sty cointype
+    cpy #0
+    beq coindone
+    lda #$23
+    ldx #$ff
+    jsr player+$300 ; play sfx
+coindone
 
     ; blit to scr
-
-    ldy #[herox*4]
     clc
+    ldy #[herox*4]
+    lda tilechar
     :3 dta {sta (),y},scrpos,{adc #},4,{iny}
     sta (scrpos),y
     lda #linewidth
@@ -596,7 +602,7 @@ drawedgetiles
     add edgeoff
     sta drawpos+1
     lda coarse+1
-    adc #0
+    adc >scr
     sta drawpos+2
 
     lda drawpos+1
@@ -648,8 +654,8 @@ tilex16
     :8 dta #*16
 tilefrac
     :4 dta #*4
-coarsehitable
-    :256 dta >[scr+[[#*linewidth]&$fff]]
+scrhitable
+    :128 dta >[scr+[[#*linewidth]&$fff]]
 
 >>> my $jsteps = 39;
 >>> my $jheight = 3;
