@@ -11,6 +11,7 @@ edgeoff org *+1
 tmp org *+1
 framecount org *+1
 scrpos org *+2
+reppos org *+2
 xpos org *+2
 xposlast org *+2
 jframe org *+1
@@ -28,12 +29,15 @@ lastjump org *+1
 midair org *+1
 pmbank org *+1
 cointype org *+1
+lastselect org *+1
+laststart org *+1
 
 inflate_zp equ $f0
 
 main equ $2000
-dlist equ $3900
+dlist equ $3F00
 song equ $4000
+mapcopy equ $6000
 player equ $6000
 scr equ $a000
 map equ $b000
@@ -41,12 +45,18 @@ chset equ $e000
 buffer equ $8000
 
 ntsc equ 0
+    ift ntsc
+bottomvcount equ 98
+hy equ 82
+    els
+bottomvcount equ 122
+hy equ 114
+    eif
 mapheight equ 16
 mapwidth equ 512
 linewidth equ $40
 herox equ 5
 hx equ 100
-hy equ 100
 bank0 equ $82
 bank1 equ $86
 bank2 equ $8A
@@ -122,20 +132,27 @@ disable_antic
     lda #128
     cmp:rne VCOUNT
     rts
-    ini disable_antic
+preinit
+    jsr setbank0
+    jsr clearbank
+    mwa #mapcopy buffer
+    mwa #mapcopy+$2000 buffer+2
+    jsr relocate
+    jsr setbankmain
+    rts
 
+    ini disable_antic
     org dlist
     ift ntsc
     :25 dta $54+[#!=24]*$20,a(scr+#<<6)
     els
     :31 dta $54+[#==0]*$20,a(scr+#<<6)
     eif
+jvb
     dta $41,a(dlist)
-    icl 'assets.asm'
     icl 'sprites.asm'
-    ini setbank0
-    ini clearbank
-    ini setbankmain
+    icl 'assets.asm'
+    ini preinit
     org song
     ins 'ruffw1.tm2',6
     org player
@@ -172,6 +189,10 @@ disable_antic
     ldx >song
     jsr player+$300 ; init
 
+    ift ntsc
+    mva #6 tempo
+    eif
+
 die
     lda #0
     sta edgeoff
@@ -180,12 +201,14 @@ die
     sta DMACTL
     sta GRACTL
 
-    mva #$ff veldir
+    ;mva #$ff veldir
+    mva #velstill veldir
     mva #bankmain PORTB
     mva #japex jframe
     mva #26 ground
     mva #$50 blink
-    mwa #$0030 xpos
+    mwa #$0040 xpos
+    sta xposlast
     mwa #0 coarse
     mva >chset CHBASE
 
@@ -201,28 +224,29 @@ initdraw
     bne initdraw
     mva #0 coarse
 
-    lda #124
+    jsr play
+    lda #bottomvcount
     cmp:rne VCOUNT
+    mwa #jvb DLISTL
     mva #$3e DMACTL
     jmp blank
 showframe
+    inc:lda framecount
+    and #$c
+    ora >chset
+    sta CHBASE
+    mva pmbank PORTB
     lda blink
     seq:dec blink
     ldx #0
     and #2
     sne:ldx #3
     stx GRACTL
-    inc:lda framecount
-    and #$c
-    ora >chset
-    sta CHBASE
-    mva pmbank PORTB
     lda #3
     cmp:rne VCOUNT
     sta WSYNC
     ; line 7
-    mva <dlist DLISTL
-    mva >dlist DLISTH
+    mwa #dlist DLISTL
     ; Pal Blending per FJC, popmilo, XL-Paint Max, et al.
     ; http://www.atariage.com/forums/topic/197450-mode-15-pal-blending/
     :4 nop
@@ -235,9 +259,19 @@ showframe
     sta WSYNC
     lda #7
     sta WSYNC
+    ift !ntsc
+    sta VSCROL
+    eif
     ; Full-screen vertical fine scrolling per Rybags:
     ; http://www.atariage.com/forums/topic/154718-new-years-disc-2010/page__st__50#entry1911485
-    sta VSCROL
+psychadelic equ 0
+    ift psychadelic
+spin
+    lda VCOUNT
+    cmp #bottomvcount
+    bne spin
+    jmp blank
+    eif
     mva #$6 COLPF0
     mva #$8 COLPF1
     mva #$c COLPF2
@@ -256,11 +290,7 @@ image
     mva #$8 COLPF1
     mva #$c COLPF2
     lda VCOUNT
-    ift ntsc
-    cmp #91
-    els
-    cmp #122
-    eif
+    cmp #bottomvcount
     bne image
     :4 nop
     ldx #$72
@@ -272,26 +302,33 @@ image
     sty COLPF2
     lda #$6
     sta WSYNC
+    ift !ntsc
     sta COLPF0
     mva #$8 COLPF1
     mva #$c COLPF2
+    eif
 blank
 
     ift ntsc
-    mva #bank0 PORTB
+    mva #0 GRACTL
+    sta GRAFP0
+    sta GRAFP1
+    sta GRAFP2
+    sta GRAFP3
+    sta GRAFM
     eif
 
 ymove
     lda PORTA
-    and #1
+    and TRIG0
     cmp lastjump
     sta lastjump
-    bcs nojump  ; didn't just press up
+    bcs nojump ; didn't just press up or button
     lda midair
-    bne nojump  ; midair
+    bne nojump ; midair
     lda #japex
     cmp jframe
-    bcc nojump  ; japex < jframe
+    bcc nojump ; japex < jframe
     lda ground
     sub #jmapheight
     sta ground
@@ -395,10 +432,10 @@ adjusty
     and #$40
     beq setmidair
     ; skip if jframe >= japex
-    ldy jframe
-    cpy #japex
-    bcs adjustdone
-    mva #japex jframe
+    ldy #japex
+    cpy jframe
+    bcc adjustdone
+    sty jframe
     mva mapy ground
     mva #0 midair
     beq adjustdone
@@ -407,12 +444,46 @@ setmidair
 adjustdone
 
 music
-    ift ntsc
-    mva #0 GRACTL
-    eif
     mva #bankmain PORTB
-    jsr player+$303 ; play music
+    lda CONSOL
+    and #2
+    cmp lastselect
+    sta lastselect
+    bcs noselect ; didn't just press select
+    lda #$FF
+    eor:sta silent
+    :2 sta silent+1+#
+noselect
+    ;jsr player+$303 ; play music
+    jsr play
 musicdone
+
+start
+    lda CONSOL
+    and #1
+    cmp laststart
+    sta laststart
+    bcs startdone ; didn't just press start
+
+    mva #0 DMACTL
+    cmp:rne VCOUNT
+    sta GRACTL
+    mva #bank0 PORTB
+    mva >mapcopy memcpy+2
+    mva >map memcpy+5
+    ldx #0
+    ldy #$20
+memcpy
+    mva mapcopy,x map,x
+    inx
+    bne memcpy
+    inc memcpy+2
+    inc memcpy+5
+    dey
+    bne memcpy
+
+    jmp die
+startdone
 
 pose
     ; midair
@@ -501,6 +572,11 @@ update_display
     :31 dta {lda a:,x},a(scrhitable+#),{sta a:},a(dlist+2+3*#)
 
 replacetile
+    ; skip if out of time this frame
+    ;lda VCOUNT
+    ;cmp #$88
+    ;scc:jmp replacedone
+
     ; skip if x blocked
     lda foottile
     and #$80
@@ -515,19 +591,24 @@ replacetile
     scs:sbc #1 ; -2 because carry clear
     sta checkpos+1
 
-    ; scrpos = scr + (((scrpos-$500) - ((framecount&1) ? 0 : $100)) & $FFC)
+    ; reppos = scr + (((scrpos-jump{lo}+$500)
+    ;          - ((framecount&1) ? 0 : $100)) & $FFC)
     ldx jframe
     lda scrpos
     sub jumpscrlo,x
     and #$FC
-    sta scrpos
+    php
+    add #[herox*4]
+    sta reppos
     lda scrpos+1
-    sbc #-5
+    sbc #-5+1*ntsc
+    plp
+    adc #0
     plp
     sbc #0 ; -1 if carry clear
     and #$F
     add >scr
-    sta scrpos+1
+    sta reppos+1
 
     ; tilechar = map[checkpos]&(7<<3)<<1
     ; map[checkpos] = map[checkpos]&$F8 | map[checkpos]&(7<<3)>>3
@@ -558,46 +639,27 @@ coin
     beq coindone
     lda #$23
     ldx #$ff
-    jsr player+$300 ; play sfx
+    ;jsr player+$300 ; play sfx
+    jsr init
 coindone
+
 
     ; blit to scr
     clc
-    ldy #[herox*4]
     lda tilechar
-    :3 dta {sta (),y},scrpos,{adc #},4,{iny}
-    sta (scrpos),y
-    lda #linewidth
-    add:sta scrpos
-    scc:inc scrpos+1
-    ldy #[herox*4]
-    lda tilechar
-    add #1
-    :3 dta {sta (),y},scrpos,{adc #},4,{iny}
-    sta (scrpos),y
-    lda #linewidth
-    add:sta scrpos
-    scc:inc scrpos+1
-    ldy #[herox*4]
-    lda tilechar
-    add #2
-    :3 dta {sta (),y},scrpos,{adc #},4,{iny}
-    sta (scrpos),y
-    lda #linewidth
-    add:sta scrpos
-    scc:inc scrpos+1
-    ldy #[herox*4]
-    lda tilechar
-    add #3
-    :3 dta {sta (),y},scrpos,{adc #},4,{iny}
-    sta (scrpos),y
+    :15 dta {ldy #},[[#&$c]>>2]|[[#&3]<<6],{sta (),y},reppos,{adc #},1
+    ldy #$c3
+    sta (reppos),y
+
 replacedone
 
     jsr drawedgetiles
 
     jmp showframe
 
+drawpos equ $70
 drawedgetiles
+    ; drawpos = scr + coarse + edgeoff
     lda coarse
     add edgeoff
     sta drawpos+1
@@ -605,9 +667,13 @@ drawedgetiles
     adc >scr
     sta drawpos+2
 
+    ; mapfrac = (drawpos & 3) << 2
+    ; mappos = map + (drawpos & $FFF) >> 2
     lda drawpos+1
     sta mappos
     and #3
+    tax
+    lda tilefrac,x
     sta mapfrac
     lda drawpos+2
     and #$f
@@ -619,35 +685,53 @@ drawedgetiles
     add >map
     sta mappos+1
 
-    mva #mapheight mapy
 edge
     ldy #0
     lda (mappos),y
     and #7
     tax
     lda tilex16,x
-    ldx mapfrac
-    add tilefrac,x
+    add mapfrac
+
+    ldx >[scr+$F00]
+    cpx drawpos+2
+    bne fastblit
+    stx slowblit+2
+    mvx drawpos+1 slowblit+1
     tax
-drawpos
-    stx:inx $ffff
+    ldy #4
+slowblit
+    stx:inx $FFFF
     lda #linewidth
-    add:sta drawpos+1
-    bcc skiphi
-    lda drawpos+2
-    adc #0
-    cmp >[scr+4096]
-    bne donehi
-    lda >scr
-donehi
+    add:sta slowblit+1
+    scc:mva >scr slowblit+2
+    dey
+    bne slowblit
+    jmp donetile
+
+fastblit
+    sta (drawpos+1),y
+    ldy #$40
+    add #1
+    sta (drawpos+1),y
+    ldy #$80
+    adc #1
+    sta (drawpos+1),y
+    ldy #$C0
+    adc #1
+    sta (drawpos+1),y
+
+donetile
+    lda #1
+    add drawpos+2
+    cmp >[scr+$1000]
+    sne:lda >scr
     sta drawpos+2
-skiphi
-    iny
-    cpy #4
-    bne drawpos
-    :2 inc mappos+1
-    dec mapy
-    bne edge
+
+    lda #2
+    add:sta mappos+1
+    cmp >[map+$2000]
+    bcc edge
     rts
 
 tilex16
@@ -658,29 +742,29 @@ scrhitable
     :128 dta >[scr+[[#*linewidth]&$fff]]
 
 >>> my $jsteps = 39;
->>> my $jheight = 3;
 >>> my $jextra = 32;
+>>> my $jheight = 3;
 >>> my $jhalf = int($jsteps / 2);
 >>> my $japex = $jextra + $jhalf;
->>> my $jsoff = 8;
+>>> my $jsoff = 11;
 >>> print "jextra equ $jextra\n";
 >>> print "jlast equ ",$jextra + $jsteps - 2,"\n";
 >>> print "japex equ ",$japex,"\n";
+>>> print "jheight equ $jheight\n";
 >>> print "jmapheight equ ",$jheight*2,"\n";
->>> print "jsoff equ $jsoff\n";
 >>> my $acc = $jheight/(($jsteps-1)/2)**2;
 >>> my @traj = map { $jheight-$jheight+$acc*$_*$_ } -$jhalf .. $jhalf-1;
 >>> unshift @traj, $jheight+$_/2 for 1 .. $jextra;
 jumpscrlo
->>> printf "    dta %d\n", (int(($jsoff + $_)*4)&3)*0x40 for @traj;
+>>> printf "    dta %d\n", (int(($_)*4)&3)*0x40 for @traj;
 jumpscrhi
->>> printf "    dta %d\n", int($jsoff + $_) for @traj;
+>>> printf "    dta ntsc*1+%d\n", $jsoff + int($_) for @traj;
 jumpmap
 >>> printf "    dta %d\n", 2*int($_) for @traj;
 jumpvscrol
->>> printf "    dta %d\n", int(($jsoff + $_)*32)&6 for @traj;
+>>> printf "    dta %d\n", int(($_)*32)&6 for @traj;
 ground2scr
-    :256 dta #/2+3
+    :256 dta #/2
 
 veldirtable
 >>> my $i = 0;

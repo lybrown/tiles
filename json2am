@@ -143,10 +143,6 @@ sub main {
     my @tiles = (1 .. 8);
     #my @mapcells = map { $_ eq 6 ? 5 : 7 } @$data;
     my @mapcells = map $_-1, @$data;
-    overlay($map, \@mapcells, "visual", 1, 0, 0);
-    overlay($map, \@mapcells, "props", 33, $layer->{width}, 6);
-    overlay($map, \@mapcells, "under coins", 1, 0, 3);
-    dump_map(\@mapcells);
     print "  org buffer\n";
     print "  ; Dest Start Address, Dest End Address, Bank\n";
     print "  dta a(chset),a(chset+\$1000),0\n";
@@ -154,6 +150,10 @@ sub main {
         dump_chset($map, $palimage, [map $_+$set*8, @tiles]);
     }
     print "  ini relocate\n";
+    overlay($map, \@mapcells, "visual", 1, 0, 0);
+    overlay($map, \@mapcells, "props", 33, $layer->{width}, 6);
+    overlay($map, \@mapcells, "under coins", 1, 0, 3);
+    dump_map(\@mapcells);
 }
 
 main();
