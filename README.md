@@ -34,6 +34,7 @@ Interface
 * Joystick button or up for jump
 * Select to toggle music
 * Start to reload map
+* Option to change tile luminance
 
 Engine
 ------

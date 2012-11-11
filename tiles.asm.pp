@@ -31,6 +31,11 @@ pmbank org *+1
 cointype org *+1
 lastselect org *+1
 laststart org *+1
+lastoption org *+1
+lumi org *+1
+lum1 org *+1
+lum2 org *+1
+lum3 org *+1
 
 inflate_zp equ $f0
 
@@ -44,7 +49,6 @@ map equ $b000
 chset equ $e000
 buffer equ $8000
 
-;ntsc equ 0
     ift ntsc
 bottomvcount equ 98
 hy equ 82
@@ -122,7 +126,7 @@ clearst
     bne clearst
     rts
 banks
-    :64 dta bank0+[[#%4]<<2]
+    :4 dta bank0+[[#%4]<<2]
     ;:64 dta [[#*4]&$e0] | [[#*2]&$f] | $01
 ;inflate
 ;    icl 'inflate.asm'
@@ -185,6 +189,7 @@ jvb
     sta HPOSM1
     mva #hx+24 HPOSP3
     sta HPOSM0
+    mva #2 lumi
     lda #$70
     ldy <song
     ldx >song
@@ -249,7 +254,7 @@ showframe
     mwa #dlist DLISTL
     ; Pal Blending per FJC, popmilo, XL-Paint Max, et al.
     ; http://www.atariage.com/forums/topic/197450-mode-15-pal-blending/
-    :5 nop
+    ;:5 nop
     ldx #$72
     ldy #$d2
     lda #$32
@@ -272,11 +277,11 @@ spin
     bne spin
     jmp blank
     eif
-    mva #$6 COLPF0
-    mva #$8 COLPF1
-    mva #$c COLPF2
+    mva lum1 COLPF0
+    mva lum2 COLPF1
+    mva lum3 COLPF2
 image
-    :5 nop
+    ;:5 nop
     ldx #$72
     ldy #$d2
     lda #$32
@@ -285,14 +290,14 @@ image
     sta COLPF0
     sty COLPF2
     sta WSYNC
-    lda #$6
+    lda lum1
     sta COLPF0
-    mva #$8 COLPF1
-    mva #$c COLPF2
+    mva lum2 COLPF1
+    mva lum3 COLPF2
     lda VCOUNT
     cmp #bottomvcount
     bne image
-    :4 nop
+    ;:4 nop
     ldx #$72
     ldy #$d2
     lda #$32
@@ -300,12 +305,12 @@ image
     sta COLPF0
     sta WSYNC
     sty COLPF2
-    lda #$6
+    lda lum1
     sta WSYNC
     ift !ntsc
     sta COLPF0
-    mva #$8 COLPF1
-    mva #$c COLPF2
+    mva lum2 COLPF1
+    mva lum3 COLPF2
     eif
 blank
 
@@ -484,6 +489,24 @@ memcpy
 
     jmp die
 startdone
+
+option
+    lda CONSOL
+    and #4
+    cmp lastoption
+    sta lastoption
+    bcs nooption ; didn't just press option
+    inc lumi
+nooption
+    lda lumi
+    and #7
+    asl @
+    asl @
+    tax
+    mva lumtable+1,x lum1
+    mva lumtable+2,x lum2
+    mva lumtable+3,x lum3
+optiondone
 
 pose
     ; midair
@@ -806,8 +829,16 @@ pmbase_dir_still_midair
 pmbasetable
     :8 dta $40+8*#
 hscroltable
-    ;:4 dta 3,2,1,0
     :4 dta $f,$e,$d,$c
+lumtable
+    dta 0,4,8,10
+    dta 0,6,8,10
+    dta 0,6,8,12
+    dta 0,6,10,12
+    dta 0,8,10,12
+    dta 0,8,10,14
+    dta 0,8,12,14
+    dta 0,10,12,14
 
 
     run main

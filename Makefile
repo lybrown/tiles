@@ -44,11 +44,11 @@ gzip2deflate: gzip2deflate.c
 	gcc -o $@ $<
 
 bin:
-	make ntsc=0 diskloader.atr
+	make ntsc=0 diskloader.atr -W tiles.asm.pp
 	mv tiles.xex binaries/tiles-pal.xex
 	mv diskloader.atr binaries/tiles-pal.atr
 	rm tiles.obx
-	make ntsc=1 diskloader.atr
+	make ntsc=1 diskloader.atr -W tiles.asm.pp
 	mv tiles.xex binaries/tiles-ntsc.xex
 	mv diskloader.atr binaries/tiles-ntsc.atr
 
