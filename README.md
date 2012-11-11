@@ -51,7 +51,7 @@ Tiles
 Map
 ---
 
-* 512x16 tiles
+* 512x16 [tiles](https://github.com/lybrown/tiles/blob/master/screenshots/tiles-map.png)
 * Created in Tiled Qt
 * 3 layers: visual, blockages, under coins
 * One byte per tile
@@ -73,6 +73,7 @@ Sprites
 * 8 frames of run animation in left and right directions
 * Idle pose
 * 34K memory
+* No enemies or projectiles
 
 Screen
 ------
