@@ -6,7 +6,7 @@ Tiled Side-Scroller Demo using PAL Blending.
 Screenshot
 ----------
 
-* [![tiles](https://github.com/lybrown/tiles/raw/master/screenshots/tiles-2012-11-11.png)](https://github.com/lybrown/tiles/blob/master/screenshots/tiles-2012-11-11.png)
+[![tiles](https://github.com/lybrown/tiles/raw/master/screenshots/tiles-2012-11-11.png)](https://github.com/lybrown/tiles/blob/master/screenshots/tiles-2012-11-11.png)
 
 Video
 -----
