@@ -16,10 +16,7 @@ Video
 Binaries
 --------
 
-* [tiles-pal.xex](https://github.com/downloads/lybrown/tiles/tiles-pal.xex)
-* [tiles-pal.atr](https://github.com/downloads/lybrown/tiles/tiles-pal.atr)
-* [tiles-ntsc.xex](https://github.com/downloads/lybrown/tiles/tiles-ntsc.xex)
-* [tiles-ntsc.atr](https://github.com/downloads/lybrown/tiles/tiles-ntsc.atr)
+* https://github.com/lybrown/tiles/downloads
 
 Interface
 ---------
