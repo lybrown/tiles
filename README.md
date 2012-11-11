@@ -115,7 +115,7 @@ Thanks
   * http://www.virtualdub.org/altirra.html
 * fox for xasm
   * http://atariarea.krap.pl/x-asm/
-* jasquier for TMC2
+* jaskier for TMC2
   * http://jaskier.atari8.info/
 * AtariAge Forums
   * http://www.atariage.com/forums/forum/12-atari-8-bit-computers/
