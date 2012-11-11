@@ -55,8 +55,8 @@ hy equ 114
 mapheight equ 16
 mapwidth equ 512
 linewidth equ $40
-herox equ 5
-hx equ 100
+herox equ 4
+hx equ 100+12-16
 bank0 equ $82
 bank1 equ $86
 bank2 equ $8A
@@ -207,7 +207,7 @@ die
     mva #japex jframe
     mva #26 ground
     mva #$50 blink
-    mwa #$0040 xpos
+    mwa #$0070 xpos
     sta xposlast
     mwa #0 coarse
     mva >chset CHBASE
@@ -249,16 +249,16 @@ showframe
     mwa #dlist DLISTL
     ; Pal Blending per FJC, popmilo, XL-Paint Max, et al.
     ; http://www.atariage.com/forums/topic/197450-mode-15-pal-blending/
-    :4 nop
+    :5 nop
     ldx #$72
     ldy #$d2
     lda #$32
+    sta WSYNC
     stx COLPF1
     sta COLPF0
     sty COLPF2
     sta WSYNC
     lda #7
-    sta WSYNC
     ift !ntsc
     sta VSCROL
     eif
@@ -276,16 +276,16 @@ spin
     mva #$8 COLPF1
     mva #$c COLPF2
 image
-    :4 nop
+    :5 nop
     ldx #$72
     ldy #$d2
     lda #$32
+    sta WSYNC
     stx COLPF1
     sta COLPF0
-    sta WSYNC
     sty COLPF2
-    lda #$6
     sta WSYNC
+    lda #$6
     sta COLPF0
     mva #$8 COLPF1
     mva #$c COLPF2
@@ -806,7 +806,8 @@ pmbase_dir_still_midair
 pmbasetable
     :8 dta $40+8*#
 hscroltable
-    :4 dta 3,2,1,0
+    ;:4 dta 3,2,1,0
+    :4 dta $f,$e,$d,$c
 
 
     run main
