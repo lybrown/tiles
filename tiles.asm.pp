@@ -89,6 +89,7 @@ st  sta $ffff
     lda st+2
     cmp buffer+3
     bne ld
+    cli
 setbank0
     mva #bank0|1 PORTB
     rts
@@ -201,7 +202,7 @@ die
     sta DMACTL
     sta GRACTL
 
-    ;mva #$ff veldir
+    mva #$ff veldir
     mva #velstill veldir
     mva #bankmain PORTB
     mva #japex jframe
