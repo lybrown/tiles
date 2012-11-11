@@ -16,10 +16,10 @@ Video
 Binaries
 --------
 
-* [tiles-pal.xex](https://github.com/lybrown/tiles/raw/master/binaries/tiles-pal.xex)
-* [tiles-pal.atr](https://github.com/lybrown/tiles/raw/master/binaries/tiles-pal.atr)
-* [tiles-ntsc.xex](https://github.com/lybrown/tiles/raw/master/binaries/tiles-ntsc.xex)
-* [tiles-ntsc.atr](https://github.com/lybrown/tiles/raw/master/binaries/tiles-ntsc.atr)
+* [tiles-pal.xex](https://github.com/downloads/lybrown/tiles/tiles-pal.xex)
+* [tiles-pal.atr](https://github.com/downloads/lybrown/tiles/tiles-pal.atr)
+* [tiles-ntsc.xex](https://github.com/downloads/lybrown/tiles/tiles-ntsc.xex)
+* [tiles-ntsc.atr](https://github.com/downloads/lybrown/tiles/tiles-ntsc.atr)
 
 Interface
 ---------
@@ -33,7 +33,8 @@ Engine
 ------
 
 * Changes three playfield colors every scan line
-  * Pixels mix vertically for effectively square pixels at 16 colors
+  * Pixels mix vertically in PAL for effectively square pixels at 16 colors
+  * Less mixing in NTSC but still somewhat colorful
 * No computation during raster
 * 50fps or 60fps on PAL or NTSC
 * Pared down display height on NTSC to make up for less vertical blank time
@@ -81,7 +82,7 @@ Screen
 
 * Effectively 160x120 pixels at 16 colors
 * 10x7.5 tiles
-* 16 tiles along vertical edge are updated every frame in direction of x movement
+* 16 quarter tile slices along vertical edge are updated every frame in direction of x movement
 * Takes advantage of Antic LMS wrap for continuous scrolling
 * 1 full tile can be replaced per frame (coin -> background)
 * Coin collision dectection alternates between lower and upper tile of hero every frame
