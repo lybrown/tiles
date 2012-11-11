@@ -58,6 +58,13 @@ Map
   * 1 bit for vertical blockage
 * 8K memory
 
+Development
+-----------
+
+* ["The Matrix"](https://github.com/lybrown/tiles/blob/master/screenshots/screenshot-matrix-2012-11-03.png)
+* [Psychadelic](https://github.com/lybrown/tiles/blob/master/screenshots/psychadelic-2-2012-11-09.png)
+  * This happens if you disable the color register swapping every scan line.
+
 Sprites
 -------
 
