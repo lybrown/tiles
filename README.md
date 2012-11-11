@@ -18,6 +18,12 @@ Binaries
 
 * https://github.com/lybrown/tiles/downloads
 
+Requirements
+------------
+
+* Atari 8-bit computer with 128K of memory
+* Functions on 64K but displays garbage sprites
+
 Interface
 ---------
 
