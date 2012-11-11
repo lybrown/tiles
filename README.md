@@ -114,8 +114,9 @@ Thanks
   * http://www.youtube.com/watch?v=FfBFxvelfVM#t=145s
 * flashjazzcat, popmilo, XL-Paint Max, et. al. for PAL Blending
   * http://www.atariage.com/forums/topic/197450-mode-15-pal-blending/
-* Rybags for full-screen VSCROL technique
+* Rybags for full-screen VSCROL technique and high HSCROL lighter DMA technique
   * http://www.atariage.com/forums/topic/154718-new-years-disc-2010/page__st__50#entry1911485
+  * http://www.atariage.com/forums/topic/197450-mode-15-pal-blending/page__st__100#entry2637036
 * phaeron for Altirra and VirtualDub
   * http://www.virtualdub.org/altirra.html
 * fox for xasm
