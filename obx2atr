@@ -27,4 +27,5 @@ my $data = join '', <>;
 
 print $header, $data;
 
-print "\0" x (183936 - length $data);
+print "\0" x 128;
+#print "\0" x (183936 - length $data);

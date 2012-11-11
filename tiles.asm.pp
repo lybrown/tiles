@@ -44,7 +44,7 @@ map equ $b000
 chset equ $e000
 buffer equ $8000
 
-ntsc equ 0
+;ntsc equ 0
     ift ntsc
 bottomvcount equ 98
 hy equ 82
@@ -203,7 +203,6 @@ die
     sta GRACTL
 
     mva #$ff veldir
-    mva #velstill veldir
     mva #bankmain PORTB
     mva #japex jframe
     mva #26 ground

@@ -9,6 +9,7 @@ assets.asm: tiles.json pal.ppm tileset.png json2am
 sprites.asm: sprites.png sprites
 	./sprites $< > $@
 
+ntsc := 0
 atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 
 %.png: %-fullcolor.png
@@ -30,7 +31,7 @@ atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 	perl $< > $@
 	
 %.obx: %.asm
-	xasm /l $<
+	xasm /l /d:ntsc=$(ntsc) $<
 
 %.dfl: %.bin gzip2deflate
 	#7z a -tgzip -mx=9 -so dummy $< | ./gzip2deflate >$@
@@ -41,6 +42,15 @@ atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 
 gzip2deflate: gzip2deflate.c
 	gcc -o $@ $<
+
+bin:
+	make ntsc=0 diskloader.atr
+	mv tiles.xex binaries/tiles-pal.xex
+	mv diskloader.atr binaries/tiles-pal.atr
+	rm tiles.obx
+	make ntsc=1 diskloader.atr
+	mv tiles.xex binaries/tiles-ntsc.xex
+	mv diskloader.atr binaries/tiles-ntsc.atr
 
 clean:
 	rm -f *.{obx,atr,lst} *.{tmc,tm2,pgm,wav}.asm *~
