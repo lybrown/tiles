@@ -56,7 +56,7 @@ Tiles
 * Effectively 16 colors
 * 8 different tiles fit into Atari's 128 entry character set
 * 4 [character sets](https://github.com/lybrown/tiles/raw/master/tileset.png) to animate coins
-* 1K memory
+* 4K memory
 
 Map
 ---
