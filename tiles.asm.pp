@@ -67,6 +67,9 @@ bank2 equ $8A
 bank3 equ $8E
 bankmain equ $FE
 velstill equ 15
+chroma1 equ $74
+chroma2 equ $34
+chroma3 equ $d4
 
     org main
 relocate
@@ -247,6 +250,7 @@ showframe
     and #2
     sne:ldx #3
     stx GRACTL
+    ;mva #$70 COLBK
     lda #3
     cmp:rne VCOUNT
     sta WSYNC
@@ -255,12 +259,12 @@ showframe
     ; Pal Blending per FJC, popmilo, XL-Paint Max, et al.
     ; http://www.atariage.com/forums/topic/197450-mode-15-pal-blending/
     ;:5 nop
-    ldx #$72
-    ldy #$d2
-    lda #$32
+    lda #chroma1
+    ldx #chroma2
+    ldy #chroma3
     sta WSYNC
-    stx COLPF1
     sta COLPF0
+    stx COLPF1
     sty COLPF2
     sta WSYNC
     lda #7
@@ -277,38 +281,36 @@ spin
     bne spin
     jmp blank
     eif
-    mva lum1 COLPF0
+    ;mva lum1 COLPF0
     mva lum2 COLPF1
     mva lum3 COLPF2
 image
     ;:5 nop
-    ldx #$72
-    ldy #$d2
-    lda #$32
+    lda #chroma1
+    ldx #chroma2
+    ldy #chroma3
     sta WSYNC
-    stx COLPF1
     sta COLPF0
+    stx COLPF1
     sty COLPF2
     sta WSYNC
-    lda lum1
-    sta COLPF0
+    ;mva lum1 COLPF0
     mva lum2 COLPF1
     mva lum3 COLPF2
     lda VCOUNT
     cmp #bottomvcount
     bne image
     ;:4 nop
-    ldx #$72
-    ldy #$d2
-    lda #$32
-    stx COLPF1
-    sta COLPF0
+    lda #chroma1
+    ldx #chroma2
+    ldy #chroma3
     sta WSYNC
+    sta COLPF0
+    stx COLPF1
     sty COLPF2
-    lda lum1
     sta WSYNC
     ift !ntsc
-    sta COLPF0
+    ;mva lum1 COLPF0
     mva lum2 COLPF1
     mva lum3 COLPF2
     eif

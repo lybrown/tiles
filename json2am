@@ -15,7 +15,7 @@ sub pal {
     @colors == 16 or die "ERROR: image must have exactly 16 colors but has ",
         scalar @colors, ": ", (Dumper \@colors), "\n";
     my @reds = grep { $_->[0] > $_->[1] && $_->[0] > $_->[2] } @colors;
-    my @greens = grep { $_->[1] > $_->[0] && $_->[0] > $_->[2] } @colors;
+    my @greens = grep { $_->[1] > $_->[0] && $_->[1] > $_->[2] } @colors;
     my @blues = grep { $_->[2] > $_->[1] && $_->[2] > $_->[0] } @colors;
     my @greys = grep { $_->[0] == $_->[1] && $_->[0] == $_->[2] } @colors;
     @reds = sort { $a->[0] <=> $b->[0] } @reds;
@@ -23,10 +23,11 @@ sub pal {
     @blues = sort { $a->[2] <=> $b->[2] } @blues;
     @greys = sort { $a->[0] <=> $b->[0] } @greys;
     my %pal;
-    for ([\@reds, 1], [\@greens, 3], [\@blues, 2], [\@greys, 0]) {
+    for ([\@reds, 2], [\@greens, 3], [\@blues, 1], [\@greys, 0]) {
         my ($hue, $val) = @$_;
         $pal{join ",", @{$hue->[$_]}} = [$val, $_] for 0 .. 3;
     }
+    $pal{join ",", @{$blues[0]}} = [1, 1];
     $pal{$_} = $pal{$_}[0] << 2 | $pal{$_}[1] for keys %pal;
     return \%pal;
 }
