@@ -67,7 +67,7 @@ bank2 equ $8A
 bank3 equ $8E
 bankmain equ $FE
 velstill equ 15
-chroma1 equ $74
+chroma1 equ $76
 chroma2 equ $34
 chroma3 equ $d4
 
@@ -250,7 +250,7 @@ showframe
     and #2
     sne:ldx #3
     stx GRACTL
-    ;mva #$70 COLBK
+    mva #2 COLBK
     lda #3
     cmp:rne VCOUNT
     sta WSYNC
@@ -835,7 +835,8 @@ hscroltable
 lumtable
     dta 0,4,8,10
     dta 0,6,8,10
-    dta 0,6,8,12
+    ;dta 0,6,8,12
+    dta 2,6,10,14
     dta 0,6,10,12
     dta 0,8,10,12
     dta 0,8,10,14
