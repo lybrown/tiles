@@ -51,7 +51,7 @@ buffer equ $8000
 
     ift ntsc
 bottomvcount equ 98
-hy equ 82
+hy equ 87
     els
 bottomvcount equ 122
 hy equ 114
@@ -149,6 +149,7 @@ preinit
     ini disable_antic
     org dlist
     ift ntsc
+    dta $30
     :25 dta $54+[#!=24]*$20,a(scr+#<<6)
     els
     :31 dta $54+[#==0]*$20,a(scr+#<<6)
@@ -321,6 +322,8 @@ blank
     sta GRAFP2
     sta GRAFP3
     sta GRAFM
+    lda #$10
+    eor:sta dlist
     eif
 
 ymove
@@ -575,13 +578,13 @@ update_display
     ; update low bytes of dlist
     lda scrpos
     sta tmp
-    :8 sta dlist+1+12*#
+    :8 sta dlist+1+12*#+ntsc
     add #linewidth
-    :8 sta dlist+4+12*#
+    :8 sta dlist+4+12*#+ntsc
     add #linewidth
-    :8 sta dlist+7+12*#
+    :8 sta dlist+7+12*#+ntsc
     add #linewidth
-    :7 sta dlist+10+12*#
+    :7 sta dlist+10+12*#+ntsc
 
     ; update high bytes of dlist
     ; dlist{hi}[i] = scrhitable[(scrpos & $FC0) >> 6]
@@ -592,7 +595,7 @@ update_display
     asl tmp
     rol @
     tax
-    :31 dta {lda a:,x},a(scrhitable+#),{sta a:},a(dlist+2+3*#)
+    :31 dta {lda a:,x},a(scrhitable+#),{sta a:},a(dlist+2+3*#+ntsc)
 
 replacetile
     ; skip if out of time this frame
