@@ -776,8 +776,8 @@ scrhitable
 >>> print "jheight equ $jheight\n";
 >>> print "jmapheight equ ",$jheight*2,"\n";
 >>> my $acc = $jheight/(($jsteps-1)/2)**2;
->>> my @traj = map { $jheight-$jheight+$acc*$_*$_ } -$jhalf .. $jhalf-1;
->>> unshift @traj, $jheight+$_/2 for 1 .. $jextra;
+>>> my @traj = map { $jheight-$jheight+$acc*$_*$_ } -$jhalf-$jextra .. $jhalf-1;
+>>> #unshift @traj, $jheight+$_/2 for 1 .. $jextra;
 jumpscrlo
 >>> printf "    dta %d\n", (int(($_)*4)&3)*0x40 for @traj;
 jumpscrhi
@@ -804,6 +804,8 @@ veldirtable
 >>>   $veln -= 1 if $left and $veln > 0;
 >>>   $veln -= 1 if $stop and $veln > 15;
 >>>   $veln += 1 if $stop and $veln < 15;
+>>>   #$veln += 1 if $right and $veln < 15;
+>>>   #$veln -= 1 if $left and $veln > 15;
 >>>   printf "    ; i=%x dirn=$dirn stop=$stop right=$right left=$left", $i++;
 >>>   printf " vel=$vel veln=$veln\n";
 >>>   printf "    dta %d\n", $dirn<<7|$veln;

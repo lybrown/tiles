@@ -37,7 +37,7 @@ atari = /c/Documents\ and\ Settings/lybrown/Documents/Altirra.exe
 	#7z a -tgzip -mx=9 -so dummy $< | ./gzip2deflate >$@
 	gzip -c -9 $< | ./gzip2deflate >$@
 
-%.atr: %.obx
+%.atr: %.obx obx2atr
 	./obx2atr $< > $@
 
 gzip2deflate: gzip2deflate.c
